@@ -1,22 +1,22 @@
 <template>
   <v-sheet theme="light" tabindex="0" @keydown="handleKeyDown" @keyup="handleKeyUp">
     <v-stage ref="stage" :config="stageSize" @dragstart="handleDragstart" @dragend="handleDragend"
-      @pointerdown="handleMouseDown" @pointermove="handleMouseMove" @pointerup="handleMouseUp">
+      @pointerdown="handleMouseDown" @pointermove="handleMouseMove" @pointerup="handleMouseUp"
+      @wheel="handleMouseWheel" @contextmenu="handleContextMenu" v-resize="onResize">
 
-      <v-layer ref="gridLayer">
+      <v-layer ref="gridLayer" :config="{listening: false, x:-2500, y:-2500}">
         <v-line v-for="i in 100" :key="i" :config="{
-          points: [0, i * 50, stageSize.width, i * 50],
+          points: [0, i * 50, 5000, i * 50],
           stroke: '#ddd',
           strokeWidth: 1
         }" />
         <v-line v-for="i in 100" :key="i" :config="{
-          points: [i * 50, 0, i * 50, stageSize.height],
+          points: [i * 50, 0, i * 50, 5000],
           stroke: '#ddd',
           strokeWidth: 1
         }" />
       </v-layer>
-      <v-layer ref="draw
-    Layer">
+      <v-layer ref="drawLayer">
         <v-line v-for="(line, i) in lines" :key="i" :config="{
           points: line.points,
           stroke: line.color,
@@ -40,7 +40,8 @@
             shadowBlur: 10,
             shadowOffsetX: dragItemId === item.id ? 15 : 5,
             shadowOffsetY: dragItemId === item.id ? 15 : 5,
-            shadowOpacity: 0.6
+            shadowOpacity: 0.6,
+            perfectDrawEnabled: true // Fixes many Safari shadow issues
           }">
           </v-circle>
           <v-text :config="{
@@ -82,6 +83,7 @@
 import type { Layer } from 'konva/lib/Layer';
 import type { Node } from 'konva/lib/Node';
 import { Stage } from 'konva/lib/Stage';
+import type { Vector2d } from 'konva/lib/types';
 import { ref, onMounted } from 'vue';
 import type { VueKonvaRef } from 'vue-konva';
 
@@ -119,6 +121,16 @@ const lines = ref<Array<Line>>([]);
 const isDrawing = ref(false);
 const shiftDown = ref(false);
 const color = ref('black');
+let lastMousePosition: Vector2d = { x: 0, y: 0};
+
+const DRAW_BUTTONS = 1
+const PAN_BUTTONS = 2
+const ERASE_KEY = 'Shift'
+
+function handleContextMenu(e : KonvaEvent<PointerEvent>)
+{
+  e.evt.preventDefault();
+};
 
 const handleDragstart = (e : KonvaEvent<DragEvent>) => {
   // save drag element:
@@ -147,8 +159,16 @@ const handleMouseDown = (e : KonvaEvent<PointerEvent>) => {
   {    
     isDrawing.value = true;
 
-    const pos = stage.getPointerPosition()!;
-    lines.value.push({ color: shiftDown.value ? 'erase' : color.value, points: [pos.x, pos.y] });
+    if (e.evt.buttons === PAN_BUTTONS)
+    {
+      lastMousePosition.x = stage.getPointerPosition()!.x;
+      lastMousePosition.y = stage.getPointerPosition()!.y;
+    }
+    else if (e.evt.buttons === DRAW_BUTTONS)
+    {
+      const pos = stage.getRelativePointerPosition()!;
+      lines.value.push({ color: shiftDown.value ? 'erase' : color.value, points: [pos.x, pos.y] });
+    }
   }
 };
 
@@ -162,11 +182,36 @@ const handleMouseMove = (e: KonvaEvent<PointerEvent>) => {
   const stage = e.target?.getStage();
   if (stage)
   {
-    const point = stage.getPointerPosition()!;
+    const point = stage.getRelativePointerPosition()!;
 
-    let lastLine = lines.value[lines.value.length - 1];
-    lastLine.points = lastLine.points.concat([point.x, point.y]);
-    lines.value.splice(lines.value.length - 1, 1, { ...lastLine });
+    if (e.evt.buttons === PAN_BUTTONS)
+    {
+      const pointer = stage.getPointerPosition()!;
+      const mousePointTo = {
+        x: (pointer.x - stage.x()) / stage.scaleX(),
+        y: (pointer.y - stage.y()) / stage.scaleY(),
+      };
+
+      let dx = pointer.x - lastMousePosition.x;
+      let dy = pointer.y - lastMousePosition.y;
+      lastMousePosition.x = pointer.x;
+      lastMousePosition.y = pointer.y;
+
+      const newPos = {
+        x: pointer.x + dx - mousePointTo.x * stage.scaleX(),
+        y: pointer.y + dy - mousePointTo.y * stage.scaleY(),
+      };
+
+      stage.position(newPos)
+
+    }
+    else if (e.evt.buttons === DRAW_BUTTONS)
+    {
+      let lastLine = lines.value[lines.value.length - 1];
+      lastLine.points = lastLine.points.concat([point.x, point.y]);
+      lines.value.splice(lines.value.length - 1, 1, { ...lastLine });
+
+    }
   }
 };
 
@@ -174,10 +219,44 @@ const handleMouseUp = () => {
   isDrawing.value = false;
 };
 
+const handleMouseWheel = (e: KonvaEvent<WheelEvent>) => {
+  e.evt.preventDefault();
+
+  const scene = stage.value!.getNode();
+  const oldScale = scene.scaleX();
+  const pointer = scene.getPointerPosition()!;
+
+  const mousePointTo = {
+    x: (pointer.x - scene.x()) / oldScale,
+    y: (pointer.y - scene.y()) / oldScale,
+  };
+
+  // how to scale? Zoom in? Or zoom out?
+  let direction = e.evt.deltaY > 0 ? -1 : 1;
+
+  // when we zoom on trackpad, e.evt.ctrlKey is true
+  // in that case lets revert direction
+  if (e.evt.ctrlKey) {
+    direction = -direction;
+  }
+
+  const scaleBy = 1.1;
+  const newScale = direction > 0 ? oldScale * scaleBy : oldScale / scaleBy;
+
+  scene.scale({ x: newScale, y: newScale });
+
+  const newPos = {
+    x: pointer.x - mousePointTo.x * newScale,
+    y: pointer.y - mousePointTo.y * newScale,
+  };
+  scene.position(newPos);
+};
+
+
 const handleKeyDown = (e: KeyboardEvent) =>
 {
   const scene = stage.value!.getNode();
-  const pos = scene.getPointerPosition();
+  const pos = scene.getRelativePointerPosition();
   if (!pos) return;
 
   if (e.key === 'Backspace' || e.key === 'Delete')
@@ -196,7 +275,7 @@ const handleKeyDown = (e: KeyboardEvent) =>
       if (tokId > -1) tokens.value.splice(tokId, 1)
     }
   }
-  else if (e.key === 'Shift')
+  else if (e.key === ERASE_KEY)
   {
     shiftDown.value = true;
   }
@@ -213,7 +292,7 @@ const handleKeyDown = (e: KeyboardEvent) =>
 };
 
 const handleKeyUp = (e : KeyboardEvent) => {
-  if (e.key === 'Shift')
+  if (e.key === ERASE_KEY)
   {
     shiftDown.value = false;
   }
@@ -232,5 +311,10 @@ onMounted(() => {
   }
 });
 
+function onResize() {
+  const scene = stage.value!.getStage();
+  scene.width(window.innerWidth);
+  scene.height(window.innerHeight);
+}
 
 </script>
