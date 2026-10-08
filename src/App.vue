@@ -20,12 +20,13 @@
         <v-line v-for="(line, i) in lines" :key="i" :config="{
           points: line.points,
           stroke: line.color,
-          strokeWidth: line.color === 'erase' ? 25 : 5,
+          strokeWidth: line.color === 'erase' ? 50 : 5,
           tension: 0.5,
           lineCap: 'round',
           lineJoin: 'round',
           globalCompositeOperation: line.color === 'erase' ? 'destination-out' : 'source-over'
         }" />
+        <v-circle :config="eraseCursor" />
       </v-layer>
       <v-layer ref="tokenLayer">
         <v-group v-for="item in tokens" :key="item.id"
@@ -75,6 +76,9 @@
         </v-speed-dial>
       </v-btn>
     </v-toolbar>
+    <v-toolbar floating absolute location="bottom right">
+      <v-label>Lines: {{ lines.length }}</v-label>
+    </v-toolbar>
   </v-sheet>
 
 </template>
@@ -84,7 +88,7 @@ import type { Layer } from 'konva/lib/Layer';
 import type { Node } from 'konva/lib/Node';
 import { Stage } from 'konva/lib/Stage';
 import type { Vector2d } from 'konva/lib/types';
-import { ref, onMounted } from 'vue';
+import { ref, triggerRef, onMounted, shallowRef } from 'vue';
 import type { VueKonvaRef } from 'vue-konva';
 
 const stageSize = {
@@ -117,15 +121,131 @@ interface KonvaEvent<T> {
 
 const tokens = ref<Array<Token>>([]);
 const dragItemId = ref<string|null>(null);
-const lines = ref<Array<Line>>([]);
+const lines = shallowRef<Array<Line>>([]);
 const isDrawing = ref(false);
 const shiftDown = ref(false);
 const color = ref('black');
 let lastMousePosition: Vector2d = { x: 0, y: 0};
 
+const eraseCursor = ref({
+  visible: false,
+  stroke: 'gray',
+  strokeWidth: 1.0,
+  fill: null,
+  radius: 25,
+  x: 0,
+  y: 0
+});
+
 const DRAW_BUTTONS = 1
 const PAN_BUTTONS = 2
 const ERASE_KEY = 'Shift'
+
+function showEraseCursor(show: boolean)
+{
+  eraseCursor.value.visible = show;
+  stage.value?.getStage().container().style.setProperty('cursor', show ? 'none' : 'default');
+}
+
+function moveEraseCursor(pos: Vector2d)
+{
+  eraseCursor.value.x = pos.x;
+  eraseCursor.value.y = pos.y;
+}
+
+function resizeEraseCursor(scale: number)
+{
+  eraseCursor.value.strokeWidth= 1.0 / scale;
+  eraseCursor.value.radius = 25.0 / scale;
+  eraseCursor.value.visible = true
+}
+
+function findSegements(points: Array<number>, pos: Vector2d, r: number, inside:boolean)
+{
+  // Step 1: find all the places the line enters or leaves the circle
+  const segments = [];
+  let prevIn = !inside;
+  let i = 0;
+  while (i < points.length) {
+    const test = Math.hypot(pos.x - points[i], pos.y - points[i + 1]) <= r;
+    if (test != prevIn) {
+      segments.push(i);
+    }
+    prevIn = test;
+    i += 2;
+  }
+  if (prevIn === inside) segments.push(points.length);
+  return segments;
+}
+
+interface Splice {
+  index: number,
+  delete: number,
+  add: Array<Line>
+};
+
+function trimPoints(pos: Vector2d, r: number)
+{
+  const splices = new Array<Splice>();
+  let modified = false;
+  for (let i=lines.value.length-1; i>=0; --i)
+  {
+    const points = lines.value[i].points;
+    // Step 1: find all the parts of the line which are not inside the circle
+    const segments = findSegements(points, pos, r, false);
+
+    // Step 2: trim all the deletd points. might split or delete lines
+    if (segments.length == 0) // line is gone
+    {
+      splices.push({
+        index: i,
+        delete: 1,
+        add: []
+      });
+      modified = true;
+    }
+    else if (segments.length == 2)
+    {
+      if (segments[1]!=points.length)
+      {
+        points.splice(segments[1]);
+        modified = true;
+      }
+      if (segments[0]!=0)
+      {
+        points.splice(0, segments[0]);
+        modified = true;
+      }
+    }
+    else
+    {
+      lines.value[i].points = points.slice(segments[0], segments[1]);
+      let newLines = []
+      for (let j = 2; j<segments.length; j+=2)
+      {
+        newLines.push({
+          color: lines.value[i].color,
+          points: points.slice(segments[j], segments[j + 1])
+        });
+      }
+      splices.push({
+        index: i+1,
+        delete: 0,
+        add: newLines
+      });
+      modified = true;
+    }
+  }
+
+  // Step 3: insert/delete all the new/deleted line segments in the right slots
+  // we do this *after* iterating over the existing lines (and back to front) to
+  // make sure the indices are valid
+  for (const splice of splices) {
+    lines.value.splice(splice.index, splice.delete, ...splice.add);
+  }   
+
+  if (modified) triggerRef(lines);
+}
 
 function handleContextMenu(e : KonvaEvent<PointerEvent>)
 {
@@ -167,15 +287,21 @@ const handleMouseDown = (e : KonvaEvent<PointerEvent>) => {
     else if (e.evt.buttons === DRAW_BUTTONS)
     {
       const pos = stage.getRelativePointerPosition()!;
-      lines.value.push({ color: shiftDown.value ? 'erase' : color.value, points: [pos.x, pos.y] });
+      if (shiftDown.value)
+      {
+        trimPoints(pos, eraseCursor.value.radius);
+      }
+      else
+      {
+        lines.value.push({ color: color.value, points: [pos.x, pos.y] });
+        triggerRef(lines);
+      }
     }
   }
 };
 
 const handleMouseMove = (e: KonvaEvent<PointerEvent>) => {
-  if (!isDrawing.value) {
-    return;
-  }
+
   // prevent scrolling on touch devices
   e.evt.preventDefault();
 
@@ -183,6 +309,11 @@ const handleMouseMove = (e: KonvaEvent<PointerEvent>) => {
   if (stage)
   {
     const point = stage.getRelativePointerPosition()!;
+
+    if (shiftDown.value) moveEraseCursor(point);
+    if (!isDrawing.value) {
+      return;
+    }
 
     if (e.evt.buttons === PAN_BUTTONS)
     {
@@ -207,10 +338,17 @@ const handleMouseMove = (e: KonvaEvent<PointerEvent>) => {
     }
     else if (e.evt.buttons === DRAW_BUTTONS)
     {
-      let lastLine = lines.value[lines.value.length - 1];
-      lastLine.points = lastLine.points.concat([point.x, point.y]);
-      lines.value.splice(lines.value.length - 1, 1, { ...lastLine });
-
+      if (shiftDown.value)
+      {
+        trimPoints(point, eraseCursor.value.radius);
+      }
+      else
+      {
+        let lastLine = lines.value[lines.value.length - 1];
+        lastLine.points = lastLine.points.concat([point.x, point.y]);
+        triggerRef(lines);
+        //lines.value.splice(lines.value.length - 1, 1, { ...lastLine });
+      }
     }
   }
 };
@@ -244,6 +382,7 @@ const handleMouseWheel = (e: KonvaEvent<WheelEvent>) => {
   const newScale = direction > 0 ? oldScale * scaleBy : oldScale / scaleBy;
 
   scene.scale({ x: newScale, y: newScale });
+  resizeEraseCursor(newScale);
 
   const newPos = {
     x: pointer.x - mousePointTo.x * newScale,
@@ -278,6 +417,8 @@ const handleKeyDown = (e: KeyboardEvent) =>
   else if (e.key === ERASE_KEY)
   {
     shiftDown.value = true;
+    showEraseCursor(true);
+    moveEraseCursor(pos);
   }
   else if (/^[a-zA-Z]$/.test(e.key))
   {
@@ -295,6 +436,7 @@ const handleKeyUp = (e : KeyboardEvent) => {
   if (e.key === ERASE_KEY)
   {
     shiftDown.value = false;
+    showEraseCursor(false);
   }
 };
 
