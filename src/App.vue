@@ -20,11 +20,20 @@
         <v-line v-for="(line, i) in lines" :key="i" :config="{
           points: line.points,
           stroke: line.color,
-          strokeWidth: line.color === 'erase' ? 25 : 5,
+          strokeWidth: line.color === 'erase' ? 50 : 5,
           tension: 0.5,
           lineCap: 'round',
           lineJoin: 'round',
           globalCompositeOperation: line.color === 'erase' ? 'destination-out' : 'source-over'
+        }" />
+        <v-circle v-if="shiftDown" :config="{
+          stroke: 'gray',
+          strokeWidth: 1.0 / stage!.getStage()!.scaleX(),
+          fill: null,
+          radius: 25 / stage!.getStage()!.scaleX(),
+          x: drawLayer!.getNode()!.getRelativePointerPosition()!.x,
+          y: drawLayer!.getNode()!.getRelativePointerPosition()!.y
+
         }" />
       </v-layer>
       <v-layer ref="tokenLayer">
