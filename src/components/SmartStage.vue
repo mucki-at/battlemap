@@ -40,10 +40,16 @@ function handleContextMenu(e: KonvaEvent<PointerEvent>)
     e.evt.preventDefault();
 }
 
-function handleMouseEnter()
+function focus()
 {
     const cont = keyContainer(deref(stageRef)!);
-    cont.focus({ preventScroll: true, focusVisible:false});
+    // @ts-expect-error: focusVisible is a new optional parameter (See MDN)
+    cont.focus({ preventScroll: true, focusVisible: false });
+}
+
+function handleMouseEnter()
+{
+    focus();
 }
 
 function handleMouseDown(e: KonvaEvent<PointerEvent>)
@@ -140,6 +146,6 @@ function onResize() {
 onMounted(() => {
     const cont = keyContainer(deref(stageRef)!);
     cont.tabIndex = 1;
-    cont.focus({ preventScroll: true, focusVisible:false});
+    focus();
 })
 </script>

@@ -44,7 +44,7 @@ import { useSettings } from '@/settings.ts';
 import { toRef } from 'vue';
 
 const settings = useSettings();
-const dialLocation = toRef(() => settings.collapse.value ? 'right center' : 'bottom center')
-const tooltipLocation = toRef(() => settings.collapse.value ? 'bottom' : 'right')
+const dialLocation = toRef(() => settings.collapse ? 'right center' : 'bottom center')
+const tooltipLocation = toRef(() => settings.collapse ? 'bottom' : 'right')
 
 </script>

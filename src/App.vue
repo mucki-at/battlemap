@@ -11,13 +11,14 @@
 
 <script lang="ts" setup>
 import { ref, shallowRef } from 'vue';
-import type { Token, Line } from '@/types.ts';
+import * as Tokens from '@/tokens';
+import * as Strokes from '@/strokes';
 import SmartStage from '@/components/SmartStage.vue';
 import GridLayer from '@/components/GridLayer.vue';
 import DrawLayer from '@/components/DrawLayer.vue';
 import TokenLayer from '@/components/TokenLayer.vue';
 import MainBar from '@/components/MainBar.vue';
 
-const tokens = ref<Array<Token>>([]);
-const lines = shallowRef<Array<Line>>([]);
+const tokens = ref<Array<Tokens.Token>>([]);
+const lines = shallowRef<Array<Strokes.Line>>([]);
 </script>
