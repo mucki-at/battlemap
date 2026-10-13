@@ -32,6 +32,7 @@ const lines = defineModel<Array<Strokes.Line>>({ required: true });
 const layer = ref<VueKonvaRef<Konva.Layer>>();
 
 const eraseCursor = ref({
+    id: 'eraseCursor',
     visible: false,
     stroke: 'gray',
     strokeWidth: 1.0,
@@ -66,7 +67,11 @@ function resizeEraseCursor(scale: number) {
 }
 
 function handleMouseDown(e: KonvaEvent<PointerEvent>) {
-    if (e.target?.getStage() !== e.target) return;
+    if (
+        e.target?.attrs.id !== 'eraseCursor' &&
+        e.target?.getStage() !== e.target
+    )
+        return;
 
     const stage = e.target?.getStage();
     if (stage && e.evt.buttons === DRAW_BUTTONS) {
@@ -97,7 +102,13 @@ function handleMouseMove(e: KonvaEvent<PointerEvent>) {
 
         if (e.evt.buttons === DRAW_BUTTONS) {
             if (eraseCursor.value.visible) {
-                if (Strokes.trimLines(lines.value, point, eraseCursor.value.radius)) {
+                if (
+                    Strokes.trimLines(
+                        lines.value,
+                        point,
+                        eraseCursor.value.radius
+                    )
+                ) {
                     triggerRef(lines);
                 }
             } else {
