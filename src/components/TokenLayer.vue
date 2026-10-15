@@ -62,12 +62,12 @@ function handleDragStart(e: KonvaEvent<DragEvent>) {
     // save drag element:
     dragItemId.value = e.target!.id();
     // move current element to the top:
-    const item = tokens.value.find((i) => i.id === dragItemId.value);
-    if (item) {
+//    const item = tokens.value.find((i) => i.id === dragItemId.value);
+/*    if (item) {
         const index = tokens.value.indexOf(item);
         tokens.value.splice(index, 1);
         tokens.value.push(item);
-    }
+    }*/
 }
 
 function handleDragEnd()
