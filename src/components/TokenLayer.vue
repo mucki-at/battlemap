@@ -61,17 +61,27 @@ const dragItemId = ref<string | null>(null);
 function handleDragStart(e: KonvaEvent<DragEvent>) {
     // save drag element:
     dragItemId.value = e.target!.id();
-    // move current element to the top:
-//    const item = tokens.value.find((i) => i.id === dragItemId.value);
-/*    if (item) {
-        const index = tokens.value.indexOf(item);
-        tokens.value.splice(index, 1);
-        tokens.value.push(item);
-    }*/
 }
 
-function handleDragEnd()
+function handleDragUpdate(e: KonvaEvent<DragEvent>)
 {
+    const item = tokens.value.find((i) => i.id === dragItemId.value);
+    if (item) {
+        const pos = e.target!.getPosition();
+        item.x = pos.x;
+        item.y = pos.y;
+    }    
+}
+
+function handleDragEnd(e: KonvaEvent<DragEvent>)
+{
+    // move current element to the top:
+    const item = tokens.value.find((i) => i.id === dragItemId.value);
+    if (item) {
+        const pos = e.target!.getPosition();
+        item.x = pos.x;
+        item.y = pos.y;
+    }
     dragItemId.value = null;
 };
 
@@ -108,6 +118,7 @@ onMounted(() => {
     const l = deref(layer)!;
     l.on('dragstart', handleDragStart);
     l.on('dragend', handleDragEnd);
+    l.on('dragmove', handleDragUpdate);
     
     const cont = keyContainer(l);
     cont.addEventListener('keydown', handleKeyDown);

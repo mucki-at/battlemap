@@ -6,20 +6,20 @@
 
                 <v-card-text>
                     <v-text-field
-                        v-model="settings.username"
+                        v-model="newUsername"
                         :rules="usernameRules"
                         label="Your name and color"
                     >
                         <template v-slot:prepend-inner>
                             <v-icon-btn
                                 id="menu-activator"
-                                :color="settings.usercolor"
+                                :color="newUsercolor"
                                 variant="text"
                                 icon="mdi-account"
                             />
                             <v-menu activator="#menu-activator">
                                 <v-color-picker
-                                    v-model="settings.usercolor"
+                                    v-model="newUsercolor"
                                     hide-inputs
                                     mode="rgb"
                                     landscape
@@ -31,7 +31,7 @@
                     </v-text-field>
 
                     <v-text-field
-                        v-model="settings.roomname"
+                        v-model="newRoomname"
                         :rules="roomnameRules"
                         label="Room name"
                     />
@@ -61,8 +61,12 @@ const isOpen = defineModel<boolean>({ required: true });
 
 const form = ref<VForm>();
 const closable = computed<boolean>(
-    () => form.value?.isValid === true && settings.isValid()
+    () => form.value?.isValid === true
 );
+
+const newUsername = ref(settings.username);
+const newUsercolor = ref(settings.usercolor);
+const newRoomname = ref(settings.roomname);
 
 const usernameRules = [
     (value: string) => {
@@ -79,6 +83,9 @@ const roomnameRules = [
 ];
 
 function closeDialog() {
+    if (settings.username != newUsername.value) settings.username=newUsername.value;
+    if (settings.usercolor != newUsercolor.value) settings.usercolor=newUsercolor.value;
+    if (settings.roomname != newRoomname.value) settings.roomname=newRoomname.value;
     isOpen.value = false;
 }
 </script>
