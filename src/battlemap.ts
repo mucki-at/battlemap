@@ -1,6 +1,6 @@
 import { syncedStore, getYjsDoc } from '@syncedstore/core';
 import * as Y from 'yjs';
-import { WebrtcProvider } from 'y-webrtc';
+import YPartyServerProvider from 'y-partyserver/provider';
 import { type Awareness } from 'y-protocols/awareness.js';
 
 import * as Tokens from '@/tokens';
@@ -37,7 +37,7 @@ export class BattleMap {
     $store: StoreType;
     $doc: Y.Doc;
     $user: User;
-    $webrtc: WebrtcProvider | null;
+    $network: YPartyServerProvider | null;
     $awareness: Awareness | null;
     $feedback: NetworkStatus | null = null;
 
@@ -48,7 +48,7 @@ export class BattleMap {
         });
         this.$doc = getYjsDoc(this.$store);
 
-        this.$webrtc = null;
+        this.$network = null;
         this.$awareness = null;
 
         this.$user = { name: 'icognito', color:'black' };
@@ -56,23 +56,9 @@ export class BattleMap {
 
     public setFeedback(feedback: NetworkStatus | null = null) {
         this.$feedback = feedback;
-        this.updateFeedback();
+        this.awarenessChanged();
     }
 
-    protected updateFeedback() {
-        if (!this.$feedback) return;
-        if (!this.$webrtc) {
-            this.$feedback.state = 'offline';
-            this.$feedback.error = 'No network object!';
-            this.$feedback.users = [];
-        } else {
-            this.$feedback.state = this.$webrtc.connected
-                ? 'online'
-                : this.$webrtc.shouldConnect
-                  ? 'connecting'
-                  : 'offline';
-        }
-    }
 
     public setUser(user: User) {
         this.$user = user;
@@ -85,28 +71,17 @@ export class BattleMap {
     public connect(roomname: string) {
         this.disconnect();
 
-        this.$webrtc = new WebrtcProvider(
+        this.$network = new YPartyServerProvider(
+            //'localhost:8787',
+            'https://battlemap.login-89a.workers.dev',
             roomname,
             this.$doc,
             {
-                // Specify signaling servers. The client will connect to every signaling server concurrently to find other peers as fast as possible.
-                signaling: ['wss://fail.mucki.dev'],
-                // If password is a string, it will be used to encrypt all communication over the signaling servers.
-                // No sensitive information (WebRTC connection info, shared data) will be shared over the signaling servers.
-                // The main objective is to prevent man-in-the-middle attacks and to allow you to securely use public / untrusted signaling instances.
-                password: 'dev.mucki.battlemap',
-                // Whether to disable WebRTC connections to other tabs in the same browser.
-                // Tabs within the same browser share document updates using BroadcastChannels.
-                // WebRTC connections within the same browser are therefore only necessary if you want to share video information too.
-                filterBcConns: true,
-                // simple-peer options. See https://github.com/feross/simple-peer#peer--new-peeropts for available options.
-                // y-webrtc uses simple-peer internally as a library to create WebRTC connections.
-                peerOpts: {}
             }
         );
 
   
-        this.$awareness = this.$webrtc.awareness;
+        this.$awareness = this.$network.awareness;
         this.$awareness.on('change', () => this.awarenessChanged());
 
         this.$awareness.setLocalState({ user: this.$user });
@@ -117,10 +92,10 @@ export class BattleMap {
             this.$awareness?.destroy();
             this.$awareness = null;
         }
-        if (this.$webrtc) {
-            this.$webrtc.disconnect();
-            this.$webrtc.destroy();
-            this.$webrtc = null;
+        if (this.$network) {
+            this.$network.disconnect();
+            this.$network.destroy();
+            this.$network = null;
         }
     }
 

@@ -53,7 +53,7 @@
 
 <script lang="ts" setup>
 import { useSettings } from '@/settings.ts';
-import { ref, computed, defineModel } from 'vue';
+import { ref, computed } from 'vue';
 import { VForm } from 'vuetify/components';
 
 const settings = useSettings();
