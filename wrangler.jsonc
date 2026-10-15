@@ -1,0 +1,25 @@
+{
+    "name": "battlemap",
+    "main": "party/index.ts",
+    "compatibility_date": "2026-10-12",
+
+    "compatibility_flags": [
+        "nodejs_compat"
+    ],
+    "durable_objects": {
+        "bindings": [
+            {
+                "name": "Main",
+                "class_name": "BattleMapServer"
+            }
+        ]
+    },
+    "migrations": [
+        {
+            "tag": "v1",
+            "new_sqlite_classes": [
+                "BattleMapServer"
+            ]
+        }
+    ]
+}

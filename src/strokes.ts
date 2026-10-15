@@ -55,7 +55,7 @@ export function trimLines(lines: Array<Line>, pos: Point, r: number) : boolean {
             modified = true;
         } else if (segments.length == 2) {
             if (segments[1] != points.length) {
-                points.splice(segments[1]);
+                points.splice(segments[1], points.length-segments[1]);
                 modified = true;
             }
             if (segments[0] != 0) {
@@ -63,7 +63,7 @@ export function trimLines(lines: Array<Line>, pos: Point, r: number) : boolean {
                 modified = true;
             }
         } else {
-            lines[i].points = points.slice(segments[0], segments[1]);
+            const newFirstSegment = points.slice(segments[0], segments[1]);         
             const newLines : Array<Line> = [];
             for (let j = 2; j < segments.length; j += 2) {
                 newLines.push({
@@ -71,11 +71,12 @@ export function trimLines(lines: Array<Line>, pos: Point, r: number) : boolean {
                     points: points.slice(segments[j], segments[j + 1]),
                 });
             }
-            splices.push({
-                index: i + 1,
-                delete: 0,
-                add: newLines,
-            });
+             lines[i].points = newFirstSegment;
+             splices.push({
+                 index: i + 1,
+                 delete: 0,
+                 add: newLines,
+             });
             modified = true;
         }
     }

@@ -1,5 +1,5 @@
 <template>
-    <v-toolbar :collapse="settings.collapse" floating absolute location="top left" title="BattleMap&nbsp;&nbsp;" >
+    <v-toolbar :collapse="settings.collapse" floating absolute location="top left" :title="`${settings.roomname}&nbsp;&nbsp;`" >
         <template v-slot:prepend>
             <v-fade-transition hide-on-leave>
                 <v-btn
@@ -34,7 +34,7 @@
         </v-btn>
         <v-btn style="margin: 3px" icon="mdi-grid" disabled/>
         <v-btn style="margin: 3px" icon="mdi-magnet" disabled/>
-        <v-btn style="margin: 3px" icon="mdi-cog" disabled/>
+        <v-btn style="margin: 3px" icon="mdi-cog" @click="$emit('showSettings')"/>
         </template>
     </v-toolbar>
 </template>

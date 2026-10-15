@@ -12,8 +12,15 @@ import vuetify from '@/plugins/vuetify';
 import VueKonva from 'vue-konva';
 import pinia from '@/plugins/pinia';
 
+import * as Vue from 'vue';
+import { enableVueBindings } from '@syncedstore/core';
+
 export function registerPlugins(app: App) {
     app.use(vuetify);
     app.use(VueKonva);
     app.use(pinia);
+
+    enableVueBindings(Vue);
 }
+
+
