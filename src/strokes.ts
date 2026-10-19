@@ -1,4 +1,8 @@
-export interface Line {
+import { uid } from '@/utils'
+
+export interface Line
+{
+    id: string;
     color: string;
     points: Array<number>;
 }
@@ -6,6 +10,31 @@ export interface Line {
 export interface Point {
     x: number;
     y: number;
+}
+
+let activeLine : Line | null = null;
+
+export function beginOrContinueLine(lines: Array<Line>, pos: Point, color: string)
+{
+    if (activeLine)
+    {
+        activeLine.points = activeLine.points.concat([pos.x, pos.y]);
+      //  activeLine.points.push(pos.x, pos.y);
+    }
+    else
+    {
+        lines.push({
+            id: uid(),
+            color: color,
+            points: [pos.x, pos.y],
+        });
+        activeLine = lines[lines.length-1]
+    }
+}
+
+export function endLine()
+{
+    activeLine = null;
 }
 
 function findSegements(
@@ -19,7 +48,9 @@ function findSegements(
     let prevIn = !inside;
     let i = 0;
     while (i < points.length) {
-        const test = Math.hypot(pos.x - points[i], pos.y - points[i + 1]) <= r;
+        const px : number = points[i];
+        const py : number = points[i+1];
+        const test = Math.hypot(pos.x - px, pos.y - py) <= r;
         if (test != prevIn) {
             segments.push(i);
         }
@@ -52,31 +83,30 @@ export function trimLines(lines: Array<Line>, pos: Point, r: number) : boolean {
                 delete: 1,
                 add: [],
             });
+            if (activeLine == lines[i])
+            {
+                activeLine = null;
+            }
             modified = true;
-        } else if (segments.length == 2) {
-            if (segments[1] != points.length) {
-                points.splice(segments[1], points.length-segments[1]);
-                modified = true;
-            }
-            if (segments[0] != 0) {
-                points.splice(0, segments[0]);
-                modified = true;
-            }
         } else {
             const newFirstSegment = points.slice(segments[0], segments[1]);         
             const newLines : Array<Line> = [];
             for (let j = 2; j < segments.length; j += 2) {
                 newLines.push({
+                    id: uid(),
                     color: lines[i].color,
                     points: points.slice(segments[j], segments[j + 1]),
                 });
             }
-             lines[i].points = newFirstSegment;
-             splices.push({
-                 index: i + 1,
-                 delete: 0,
-                 add: newLines,
-             });
+            lines[i].points = newFirstSegment;
+            if (newLines.length > 0)
+            {
+                splices.push({
+                    index: i + 1,
+                    delete: 0,
+                    add: newLines,
+                });
+            }
             modified = true;
         }
     }

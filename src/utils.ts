@@ -21,3 +21,8 @@ export function keyContainer(thing : Konva.Node) : HTMLElement
     }
     return cont;
 }
+
+export function uid() : string
+{
+    return Math.random().toString(36).substring(2, 9);
+}

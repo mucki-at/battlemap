@@ -1,8 +1,8 @@
 <template>
-    <v-layer ref="layer">
+    <v-layer ref="layer" :config="{ listening: false }">
         <v-line
-            v-for="(line, i) in lines"
-            :key="i"
+            v-for="(line) in lines"
+            :key="line.id"
             :config="{
                 points: line.points,
                 stroke: line.color,
@@ -23,7 +23,7 @@ import type { VueKonvaRef } from 'vue-konva';
 import type Konva from 'konva';
 import { onMounted, ref, triggerRef } from 'vue';
 import type { Vector2d } from 'konva/lib/types';
-import { deref, keyContainer, type KonvaEvent } from '@/utils';
+import { deref, keyContainer, uid, type KonvaEvent } from '@/utils';
 import { useSettings } from '@/settings.ts';
 
 const settings = useSettings();
@@ -83,10 +83,7 @@ function handleMouseDown(e: KonvaEvent<PointerEvent>) {
                 triggerRef(lines);
             }
         } else {
-            lines.value.push({
-                color: settings.color,
-                points: [pos.x, pos.y],
-            });
+            Strokes.beginOrContinueLine(lines.value, pos, settings.color);
             triggerRef(lines);
         }
     }
@@ -112,8 +109,7 @@ function handleMouseMove(e: KonvaEvent<PointerEvent>) {
                     triggerRef(lines);
                 }
             } else {
-                let lastLine = lines.value[lines.value.length - 1];
-                lastLine.points = lastLine.points.concat([point.x, point.y]);
+                Strokes.beginOrContinueLine(lines.value, point, settings.color);
                 triggerRef(lines);
             }
         }
@@ -122,6 +118,7 @@ function handleMouseMove(e: KonvaEvent<PointerEvent>) {
 
 function handleMouseUp() {
     isPenDown = false;
+    Strokes.endLine();
 }
 
 function handleKeyDown(e: KeyboardEvent) {
