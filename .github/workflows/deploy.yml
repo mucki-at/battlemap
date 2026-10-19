@@ -29,7 +29,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
+      - name: Deploy Server
+        id: deploy
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
@@ -38,6 +44,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Build
+        env:
+          VITE_PARTY_SERVER: ${{ steps.deploy.outputs.deployment-url }}
         run: npm run build
       - name: Setup Pages
         uses: actions/configure-pages@v5
