@@ -36,7 +36,7 @@ jobs:
           node-version: lts/*
           cache: 'npm'
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: npm ci
       - name: Deploy Server
         id: deploy
         uses: cloudflare/wrangler-action@v4
