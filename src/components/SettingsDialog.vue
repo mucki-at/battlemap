@@ -35,6 +35,7 @@
                         :rules="roomnameRules"
                         label="Room name"
                     />
+                    <v-label>Party server URL: {{serverUri}}</v-label>
                 </v-card-text>
 
                 <v-card-actions>
@@ -42,7 +43,7 @@
                     <v-btn
                         :disabled="!closable"
                         color="primary"
-                        text="Close"
+                        text="Save"
                         @click="closeDialog"
                     />
                 </v-card-actions>
@@ -52,17 +53,21 @@
 </template>
 
 <script lang="ts" setup>
-import { useSettings } from '@/settings.ts';
+import { useSettings } from '@/settings';
+import { useSession } from '@/session';
 import { ref, computed } from 'vue';
 import { VForm } from 'vuetify/components';
 
 const settings = useSettings();
+const session = useSession();
 const isOpen = defineModel<boolean>({ required: true });
 
 const form = ref<VForm>();
 const closable = computed<boolean>(
     () => form.value?.isValid === true
 );
+
+const serverUri = import.meta.env.VITE_PARTY_SERVER || '<configuration error>';
 
 const newUsername = ref(settings.username);
 const newUsercolor = ref(settings.usercolor);
@@ -83,9 +88,19 @@ const roomnameRules = [
 ];
 
 function closeDialog() {
-    if (settings.username != newUsername.value) settings.username=newUsername.value;
-    if (settings.usercolor != newUsercolor.value) settings.usercolor=newUsercolor.value;
-    if (settings.roomname != newRoomname.value) settings.roomname=newRoomname.value;
+    if ((settings.username != newUsername.value) || (settings.usercolor != newUsercolor.value))
+    {
+        settings.username=newUsername.value;
+        settings.usercolor=newUsercolor.value;
+        session.setUser({ name: settings.username, color: settings.usercolor });
+    }
+    
+    if (settings.roomname != newRoomname.value)
+    {
+        settings.roomname=newRoomname.value;
+        session.switchRoom(settings.roomname);
+    }
+    
     isOpen.value = false;
 }
 </script>
