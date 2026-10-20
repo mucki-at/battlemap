@@ -96,12 +96,28 @@ function handleMouseMove(e: KonvaEvent<PointerEvent>)
             lastMousePosition.x = pointer.x;
             lastMousePosition.y = pointer.y;
 
-            const newPos = {
-                x: pointer.x + dx - mousePointTo.x * stage.scaleX(),
-                y: pointer.y + dy - mousePointTo.y * stage.scaleY(),
-            };
+            if (e.evt.shiftKey)
+            {
+                const oldScale = stage.scaleX();
+                const newScale = oldScale * Math.pow(2.0, -dy/200.0);
 
-            stage.position(newPos);
+                stage.scale({ x: newScale, y: newScale });
+            
+                const newPos = {
+                    x: pointer.x - mousePointTo.x * newScale,
+                    y: pointer.y - mousePointTo.y * newScale,
+                };
+                stage.position(newPos);
+            }
+            else
+            {
+                const newPos = {
+                    x: pointer.x + dx - mousePointTo.x * stage.scaleX(),
+                    y: pointer.y + dy - mousePointTo.y * stage.scaleY(),
+                };
+
+                stage.position(newPos);
+            }
         }
     }
 };
