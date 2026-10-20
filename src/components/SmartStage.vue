@@ -4,6 +4,7 @@
         :config="stageSize"
         @pointerdown="handleMouseDown"
         @pointermove="handleMouseMove"
+        @touchmove="handleTouchMove"
         @pointerup="handleMouseUp"
         @wheel="handleMouseWheel"
         @contextmenu="handleContextMenu"
@@ -57,12 +58,20 @@ function handleMouseDown(e: KonvaEvent<PointerEvent>)
     const stage = deref(stageRef);
     if (stage && (stage === e.target)) {
         if (e.evt.buttons === PAN_BUTTONS) {
+            // prevent scrolling on touch devices
+            e.evt.preventDefault();
+
             isPanning = true;
             lastMousePosition.x = stage.getPointerPosition()!.x;
             lastMousePosition.y = stage.getPointerPosition()!.y;
         }
     }
 };
+
+function handleTouchMove(e: KonvaEvent<ToggleEvent>)
+{
+    e.evt.preventDefault();
+}
 
 function handleMouseMove(e: KonvaEvent<PointerEvent>) 
 {

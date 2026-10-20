@@ -76,6 +76,7 @@ function handleMouseDown(e: KonvaEvent<PointerEvent>) {
     const stage = e.target?.getStage();
     if (stage && e.evt.buttons === DRAW_BUTTONS) {
         isPenDown = true;
+        e.evt.preventDefault();
 
         const pos = stage.getRelativePointerPosition()!;
         if (eraseCursor.value.visible) {
@@ -98,6 +99,7 @@ function handleMouseMove(e: KonvaEvent<PointerEvent>) {
         if (!isPenDown) return;
 
         if (e.evt.buttons === DRAW_BUTTONS) {
+            e.evt.preventDefault();
             if (eraseCursor.value.visible) {
                 if (
                     Strokes.trimLines(
