@@ -7,7 +7,7 @@
             @click="onTokenMenu"
         />
     </v-layer>
-    <token-menu ref="tokenMenu" v-model="menuToken" />
+    <token-menu ref="tokenMenu" v-model="menuToken!" />
 </template>
 
 <script setup lang="ts">

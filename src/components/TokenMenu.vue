@@ -33,7 +33,7 @@ const settings = useSettings();
 
 const showMenu = ref(false);
 const token = defineModel<Tokens.Token>({ required: true});
-const tokenMenuPos = ref([0,0]);
+const tokenMenuPos = ref();
 
 function showAt(x:number, y:number)
 {
