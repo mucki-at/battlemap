@@ -25,7 +25,7 @@
                     open-on-hover
                 >
                     <v-btn v-for="item in settings.palette" :key="item"
-                    style="margin: 3px" 
+                        style="margin: 3px" 
                         icon="mdi-dot"
                         size="small"
                         :color="item"
@@ -34,7 +34,7 @@
                 </v-speed-dial>
             </v-btn>
             <v-btn style="margin: 3px" icon="mdi-grid" disabled/>
-            <v-btn style="margin: 3px" icon="mdi-magnet" disabled/>
+            <v-btn style="margin: 3px" :icon="settings.snapToGrid ? 'mdi-magnet-on' : 'mdi-magnet'" @click="settings.snapToGrid=!settings.snapToGrid" />
             <v-btn style="margin: 3px" icon="mdi-cog" @click="$emit('showSettings')"/>
         </template>
     </v-toolbar>

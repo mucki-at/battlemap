@@ -80,13 +80,14 @@ function drawTokenHitShape(context: Konva.Context, shape: Konva.Shape)
 
 const config = ref<Konva.ShapeConfig>({
     token: token.value,
+    revision: 0,
     x: token.value.x,
     y: token.value.y,
     fill: 'white',
     stroke: token.value.color,
     strokeWidth: 4,
     draggable: true,
-    selfRectFunc: tokenShapeRectangle,
+//    selfRectFunc: tokenShapeRectangle,
     sceneFunc: drawTokenShape,
     hitFunc: drawTokenHitShape
 })
@@ -95,6 +96,8 @@ watch(
     token,
     (newToken) => {
         config.value.token = newToken;
+        config.value.revision += 1;
+        config.value.stroke = newToken.color;
         config.value.x = newToken.x;
         config.value.y = newToken.y;
     },

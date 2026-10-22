@@ -36,6 +36,8 @@
                         label="Room name"
                     />
                     <v-label>Party server URL: {{serverUri}}</v-label>
+                    <v-spacer></v-spacer>
+                    <v-switch v-model="settings.snapToGrid" label="Snap to grid"/>
                 </v-card-text>
 
                 <v-card-actions>
