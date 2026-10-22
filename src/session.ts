@@ -14,6 +14,8 @@ export const useSession = defineStore(
         const battlemap = new BattleMap();
         battlemap.setFeedback(networkStatus.value);
 
+        const useDiscord = ref(false);
+
         const lines = ref();
         const tokens = ref();
         const roomname = ref(battlemap.getRoomName());

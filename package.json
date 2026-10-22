@@ -13,6 +13,7 @@
     "deploy-server": "npx wrangler deploy"
   },
   "dependencies": {
+    "@discord/embedded-app-sdk": "^2.5.0",
     "@fontsource/roboto": "^5.2.10",
     "@mdi/font": "7.4.47",
     "@syncedstore/core": "^0.6.0",
