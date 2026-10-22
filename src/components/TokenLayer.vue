@@ -1,126 +1,137 @@
 <template>
     <v-layer ref="layer">
-        <v-group       
-            v-for="item in tokens"
+        <token-shape      
+            v-for="(item,i) in tokens"
             :key="item.id"
-            :config="{ x: item.x, y: item.y, id: item.id, draggable: true }"
-        >
-            <v-circle
-                :config="{
-                    radius: 25,
-                    fill: 'white',
-                    stroke: item.color,
-                    strokeWidth: 5,
-                    scaleX: dragItemId === item.id ? 1.2 : 1.0,
-                    scaleY: dragItemId === item.id ? 1.2 : 1.0,
-                    shadowColor: 'black',
-                    shadowBlur: 10,
-                    shadowOffsetX: dragItemId === item.id ? 15 : 5,
-                    shadowOffsetY: dragItemId === item.id ? 15 : 5,
-                    shadowOpacity: 0.6,
-                    shadowForStrokeEnabled: false,
-                    perfectDrawEnabled: true, // Fixes many Safari shadow issues
-                }"
-            >
-            </v-circle>
-            <v-text
-                :config="{
-                    x: -25,
-                    y: -25,
-                    width: 50,
-                    height: 50,
-                    text: `${item.name}${item.serial}`,
-                    fontSize: 20,
-                    fontFamily: 'Calibri',
-                    fill: 'black',
-                    stroke: 'black',
-                    strokeWidth: 1,
-                    padding: 10,
-                    align: 'center',
-                }"
-            />
-        </v-group>
+            v-model="tokens[i]"
+            @click="onTokenMenu"
+        />
     </v-layer>
+    <token-menu ref="tokenMenu" v-model="menuToken" />
 </template>
 
 <script setup lang="ts">
 import * as Tokens from '@/tokens';
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, } from 'vue';
 import type { VueKonvaRef } from 'vue-konva';
 import type Konva from 'konva';
-import { deref, keyContainer, type KonvaEvent } from '@/utils';
+import { deref, uid, keyContainer, type KonvaEvent } from '@/utils';
 import { useSettings } from '@/settings';
+import TokenShape from './TokenShape.vue';
+import TokenMenu from './TokenMenu.vue';
+import type { Point } from '@/strokes.ts';
 
 const settings = useSettings();
-
 const layer = ref<VueKonvaRef<Konva.Layer>>();
-
 const tokens = defineModel<Array<Tokens.Token>>({ required: true });
-const dragItemId = ref<string | null>(null);
+const menuToken = ref<Tokens.Token>();
+const tokenMenu = ref();
 
-function handleDragStart(e: KonvaEvent<DragEvent>) {
-    // save drag element:
-    dragItemId.value = e.target!.id();
+const GRIDSIZE = 50.0;
+const SNAP = 50.0;
+
+let currentKeyDown = '';
+
+function toGrid(x: number, size: number) : number
+{
+    if (size<1.0) size=1.0;
+    const ofs=(Math.round(size) % 2) * 25.0;
+
+    return Math.round((x+ofs)/GRIDSIZE)*GRIDSIZE-ofs;
 }
+
+function snapToGrid(pos: Konva.Vector2d, size: number) : boolean
+{
+    const gridX=toGrid(pos.x, size);
+    const gridY=toGrid(pos.y, size);
+    if (Math.hypot(pos.x-gridX,pos.y-gridY) <= SNAP)
+    {
+        pos.x = gridX;
+        pos.y = gridY;
+        return true;
+    }
+    return false;
+}
+
 
 function handleDragUpdate(e: KonvaEvent<DragEvent>)
 {
-    const item = tokens.value.find((i) => i.id === dragItemId.value);
-    if (item) {
-        const pos = e.target!.getPosition();
-        item.x = pos.x;
-        item.y = pos.y;
-    }    
+    const shape = e.target;
+    if (!shape) return;
+    const token = shape.getAttr('token') as Tokens.Token
+    if (!token) return;
+
+    const pos=shape.getPosition();
+    if (e.evt.ctrlKey !== settings.snapToGrid)
+    {
+        if (snapToGrid(pos, token.size)) shape.setPosition(pos);
+    }
+
+    token.x = pos.x;
+    token.y = pos.y;
 }
 
-function handleDragEnd(e: KonvaEvent<DragEvent>)
-{
-    // move current element to the top:
-    const item = tokens.value.find((i) => i.id === dragItemId.value);
-    if (item) {
-        const pos = e.target!.getPosition();
-        item.x = pos.x;
-        item.y = pos.y;
-    }
-    dragItemId.value = null;
-};
 
 function handleKeyDown(e: KeyboardEvent) {
     const scene = deref(layer)?.getStage();
     const pos = scene?.getRelativePointerPosition();
     if (!scene || !pos) return;
 
-    if (e.key === 'Backspace' || e.key === 'Delete') {
-       
-        let shape = scene.getIntersection(pos) as Konva.Node;
+    if (e.key === 'Backspace' || e.key === 'Delete') {   
+        let shape = scene.getIntersection(scene.getPointerPosition()!) as Konva.Node;
         if (shape?.getType() === 'Shape') {
-            if (shape.getParent()?.getType() === 'Group') {
-                shape = shape.getParent()!;
-            }
             const tokId = tokens.value.findIndex((elem) => {
-                return elem.id === shape.getAttrs().id;
+                return elem.id === shape.getAttr('token').id;
             });
             if (tokId > -1) tokens.value.splice(tokId, 1);
         }
-    } else if (/^[a-zA-Z]$/.test(e.key)) {
+    } else if ((!currentKeyDown) && (/^[a-zA-Z]$/.test(e.key)))
+    {
+        currentKeyDown=e.key;
+        if (settings.snapToGrid)
+        {
+            snapToGrid(pos, 1.0);
+        }
+
+        const n = e.key.toUpperCase();
+        const s = Tokens.getSerial(n,tokens.value);
         tokens.value.push({
             name: e.key.toUpperCase(),
-            serial: tokens.value.length + 1,
-            id: Math.round(Math.random() * 10000).toString(),
+            serial: s,
+            id: uid(),
             color: settings.color,
+            size: 1,
             x: pos.x,
             y: pos.y,
         });
     }
 }
 
+function handleKeyUp(e: KeyboardEvent)
+{
+    if (currentKeyDown===e.key)
+    {
+        currentKeyDown='';        
+    }
+}
+
+function onTokenMenu(e: KonvaEvent<MouseEvent>)
+{
+    const item = e.target?.getAttr('token') as Tokens.Token
+    if (item) {
+        menuToken.value=item;
+        tokenMenu.value.showAt(e.evt.clientX,e.evt.clientY)
+    }
+}
+
 onMounted(() => {
     const l = deref(layer)!;
-    l.on('dragstart', handleDragStart);
-    l.on('dragend', handleDragEnd);
+    l.on('dragend', handleDragUpdate);
     l.on('dragmove', handleDragUpdate);
     
     const cont = keyContainer(l);
     cont.addEventListener('keydown', handleKeyDown);
+    cont.addEventListener('keyup', handleKeyUp);
+
 });
 </script>

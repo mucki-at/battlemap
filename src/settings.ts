@@ -1,9 +1,13 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 
+const CURRENT_VERSION=1;
+
 export const useSettings = defineStore(
     'settings',
-    () => {
+    () => { 
+        const version = ref(CURRENT_VERSION);
+
         const username = ref('');
         const usercolor = ref(
             '#' +
@@ -14,8 +18,11 @@ export const useSettings = defineStore(
         const roomname = ref('');
 
         const color = ref('black');
-        const palette = ref(['black', 'red', 'green', 'blue']);
+        
+        const palette = ref(['black', 'brown', 'gray', 'red', 'orange', 'yellow', 'green', 'cyan', 'blue', 'purple']);
         const collapse = ref(true);
+
+        const snapToGrid = ref(true);
 
         function isValid(): boolean {
             return (
@@ -25,16 +32,18 @@ export const useSettings = defineStore(
         }
 
         return {
+            version,
             username,
             usercolor,
             roomname,
             color,
             palette,
             collapse,
+            snapToGrid,
             isValid,
         };
     },
     {
-        persist: true,
+        persist: true
     }
 );

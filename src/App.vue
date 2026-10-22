@@ -25,6 +25,13 @@ import { useSession } from '@/session';
 const settings = useSettings();
 const session = useSession();
 
+// BUGBUGBUG: update clients with settigns before v1
+if ((settings.version<=1) && (settings.palette[1]=='red'))
+{
+    settings.palette = ['black', 'brown', 'gray', 'red', 'orange', 'yellow', 'green', 'cyan', 'blue', 'purple'];
+}
+
+
 const showSettings = ref(!settings.isValid());
 
 if (settings.isValid())
