@@ -14,6 +14,22 @@
         "enabled": true
     },
     "upload_source_maps": true,
+    "vars": {
+        "VITE_DISCORD_CLIENT_ID": "1562902775468269689"
+    },
+    "previews": {
+        "vars": {
+            "VITE_DISCORD_CLIENT_ID": "1562902775468269689"
+        },
+        "durable_objects": {
+            "bindings": [
+                {
+                    "name": "Main",
+                    "class_name": "BattleMapServer"
+                }
+            ]
+        }
+    },
     "durable_objects": {
         "bindings": [
             {

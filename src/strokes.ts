@@ -28,7 +28,7 @@ export function beginOrContinueLine(lines: Array<Line>, pos: Point, color: strin
             color: color,
             points: [pos.x, pos.y],
         });
-        activeLine = lines[lines.length-1]
+        activeLine = lines[lines.length-1]!
     }
 }
 
@@ -48,8 +48,8 @@ function findSegements(
     let prevIn = !inside;
     let i = 0;
     while (i < points.length) {
-        const px : number = points[i];
-        const py : number = points[i+1];
+        const px : number = points[i]!;
+        const py : number = points[i+1]!;
         const test = Math.hypot(pos.x - px, pos.y - py) <= r;
         if (test != prevIn) {
             segments.push(i);
@@ -71,7 +71,7 @@ export function trimLines(lines: Array<Line>, pos: Point, r: number) : boolean {
     const splices = new Array<Splice>();
     let modified = false;
     for (let i = lines.length - 1; i >= 0; --i) {
-        const points = lines[i].points;
+        const points = lines[i]!.points;
         // Step 1: find all the parts of the line which are not inside the circle
         const segments = findSegements(points, pos, r, false);
 
@@ -94,11 +94,11 @@ export function trimLines(lines: Array<Line>, pos: Point, r: number) : boolean {
             for (let j = 2; j < segments.length; j += 2) {
                 newLines.push({
                     id: uid(),
-                    color: lines[i].color,
+                    color: lines[i]!.color,
                     points: points.slice(segments[j], segments[j + 1]),
                 });
             }
-            lines[i].points = newFirstSegment;
+            lines[i]!.points = newFirstSegment;
             if (newLines.length > 0)
             {
                 splices.push({
