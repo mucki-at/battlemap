@@ -86,7 +86,7 @@ export class BattleMap {
         this.$doc = getYjsDoc(this.$store);
 
         this.$network = new YPartyServerProvider(
-            import.meta.env.VITE_PARTY_SERVER || '',
+            window.location.host,
             roomname,
             this.$doc,
             {
