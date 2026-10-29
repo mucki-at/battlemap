@@ -8,22 +8,20 @@ export class BattleMapServer extends YServer {
     };
 }
 
-interface OAuthRequest 
-{
-    code: string
-};
+interface OAuthRequest {
+    code: string;
+}
 
-interface OAuthResult
-{
-    access_token: string
-};
+interface OAuthResult {
+    access_token: string;
+}
 
 export default {
     // Set up your fetch handler to use configured Servers
     async fetch(request: Request, env: Env): Promise<Response> {
         if (request.url.endsWith('/api/token')) {
             // extract the request code
-            const { code } = await request.json() as OAuthRequest;
+            const { code } = (await request.json()) as OAuthRequest;
 
             // Exchange the code for an access_token
             const response = await fetch(
@@ -43,9 +41,9 @@ export default {
             );
 
             // Retrieve the access_token from the response
-            const { access_token } = await response.json() as OAuthResult;
+            const { access_token } = (await response.json()) as OAuthResult;
 
-            return Response.json({access_token});
+            return Response.json({ access_token });
         } else {
             return (
                 (await routePartykitRequest(request, env)) ||
