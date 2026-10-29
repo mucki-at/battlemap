@@ -44,7 +44,6 @@ function handleContextMenu(e: KonvaEvent<PointerEvent>)
 function focus()
 {
     const cont = keyContainer(deref(stageRef)!);
-    // @ts-expect-error: focusVisible is a new optional parameter (See MDN)
     cont.focus({ preventScroll: true, focusVisible: false });
 }
 

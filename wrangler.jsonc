@@ -1,11 +1,35 @@
+/**
+ * For more details on how to configure Wrangler, refer to:
+ * https://developers.cloudflare.com/workers/wrangler/configuration/
+ */
 {
+    "$schema": "node_modules/wrangler/config-schema.json",
     "name": "battlemap",
-    "main": "party/index.ts",
-    "compatibility_date": "2026-10-12",
-
-    "compatibility_flags": [
-        "nodejs_compat"
-    ],
+    "compatibility_date": "2026-10-28",
+    "main": "server/index.ts",
+    "assets": {
+        "not_found_handling": "single-page-application"
+    },
+    "observability": {
+        "enabled": true
+    },
+    "upload_source_maps": true,
+    "vars": {
+        "VITE_DISCORD_CLIENT_ID": "1562902775468269689"
+    },
+    "previews": {
+        "vars": {
+            "VITE_DISCORD_CLIENT_ID": "1562902775468269689"
+        },
+        "durable_objects": {
+            "bindings": [
+                {
+                    "name": "Main",
+                    "class_name": "BattleMapServer"
+                }
+            ]
+        }
+    },
     "durable_objects": {
         "bindings": [
             {

@@ -3,7 +3,7 @@
         <token-shape      
             v-for="(item,i) in tokens"
             :key="item.id"
-            v-model="tokens[i]"
+            v-model="tokens[i]!"
             @click="onTokenMenu"
         />
     </v-layer>
