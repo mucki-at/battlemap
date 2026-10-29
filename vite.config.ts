@@ -32,11 +32,17 @@ export default defineConfig({
             },
         }),
         VueDevTools(),
-        cloudflare(),
+        cloudflare({
+            persistState: false,    // we do not have server-side persistance yet, so also do not persist on client
+            tunnel: { name: 'battlemap-dev' },
+        }),
     ],
     resolve: {
         alias: {
             '@': fileURLToPath(new URL('src', import.meta.url)),
-        }
+        },
+    },
+    server: {
+        allowedHosts: [ "battlemap-dev.mucki.dev" ]
     }
 });

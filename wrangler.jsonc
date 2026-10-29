@@ -14,12 +14,15 @@
         "enabled": true
     },
     "upload_source_maps": true,
+    "secrets": {
+        "required": [ "DISCORD_CLIENT_SECRET" ]
+    },
     "vars": {
         "VITE_DISCORD_CLIENT_ID": "1562902775468269689"
     },
     "previews": {
         "vars": {
-            "VITE_DISCORD_CLIENT_ID": "1562902775468269689"
+            "VITE_DISCORD_CLIENT_ID": "1565440564231409685"
         },
         "durable_objects": {
             "bindings": [
