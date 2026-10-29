@@ -26,6 +26,16 @@ interface DiscordResult
 const waitingForDiscord = ref(false);
 async function setupDiscordSdk() : Promise<DiscordResult>
 {
+    discordStatus.value='Starting Discord SDK';
+    waitingForDiscord.value=true;
+
+    console.log('Determining Discord App ID');
+    let response = await fetch('/api/clientid');
+    const { clientId } = await response.json();
+
+    console.log(`Trying to set up discord SDK for client id ${clientId}`)
+
+    discordSdk = new DiscordSDK(clientId);
     if (!discordSdk) throw new Error('No Discord SDK');
 
     discordStatus.value='Starting Discord SDK';
@@ -34,7 +44,7 @@ async function setupDiscordSdk() : Promise<DiscordResult>
     // Authorize with Discord Client
     discordStatus.value='Authorizing client';
     const { code } = await discordSdk.commands.authorize({
-        client_id: import.meta.env.VITE_DISCORD_CLIENT_ID,
+        client_id: clientId,
         response_type: "code",
         state: "",
         prompt: "none",
@@ -46,7 +56,7 @@ async function setupDiscordSdk() : Promise<DiscordResult>
     });
 
     // Retrieve an access_token from your activity's server
-    const response = await fetch('/api/token', {
+    response = await fetch('/api/token', {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -77,21 +87,12 @@ async function setupDiscordSdk() : Promise<DiscordResult>
     };
 }
 
-try
-{
-    console.log(`Trying to set up discord SDK for client id ${import.meta.env.VITE_DISCORD_CLIENT_ID}`)
-
-    discordSdk = new DiscordSDK(import.meta.env.VITE_DISCORD_CLIENT_ID);
-    waitingForDiscord.value=true;
-    setupDiscordSdk().then((result: DiscordResult) => {
-        console.log(result);
-        emit("setupComplete", result.user, result.room);
-        waitingForDiscord.value=false;
-    }).catch((e) => {
-        discordStatus.value=`ERROR: ${e.message || 'unknown'}, ${e.reason || 'unknown'}`;
-    });
-} catch (e) {
+setupDiscordSdk().then((result: DiscordResult) => {
+    console.log(result);
+    emit("setupComplete", result.user, result.room);
+}).catch((e) => {
     console.log(`Discord setup failed: ${e}. Running in standalone mode.`);
     emit("setupComplete");
-}
+}).finally(() => { waitingForDiscord.value=false; })
+
 </script>

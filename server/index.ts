@@ -19,7 +19,11 @@ interface OAuthResult {
 export default {
     // Set up your fetch handler to use configured Servers
     async fetch(request: Request, env: Env): Promise<Response> {
-        if (request.url.endsWith('/api/token')) {
+        const url = new URL(request.url);
+        if (url.pathname==='/api/clientid') {
+            const clientId = env.VITE_DISCORD_CLIENT_ID;
+            return Response.json({clientId});
+        } else if (url.pathname==='/api/token') {
             // extract the request code
             const { code } = (await request.json()) as OAuthRequest;
 
