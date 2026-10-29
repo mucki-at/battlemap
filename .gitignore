@@ -26,3 +26,6 @@ coverage
 
 *.tsbuildinfo
 .wrangler
+.env
+SECRETS
+

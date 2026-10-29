@@ -35,7 +35,6 @@
                         :rules="roomnameRules"
                         label="Room name"
                     />
-                    <v-label>Party server URL: {{serverUri}}</v-label>
                     <v-spacer></v-spacer>
                     <v-switch v-model="settings.snapToGrid" label="Snap to grid"/>
                 </v-card-text>
@@ -68,8 +67,6 @@ const form = ref<VForm>();
 const closable = computed<boolean>(
     () => form.value?.isValid === true
 );
-
-const serverUri = import.meta.env.VITE_PARTY_SERVER || '<configuration error>';
 
 const newUsername = ref(settings.username);
 const newUsercolor = ref(settings.usercolor);

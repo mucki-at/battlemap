@@ -8,6 +8,7 @@
     </v-sheet>
     <main-bar @show-settings="showSettings=true"/>
     <settings-dialog v-model="showSettings" />
+    <discord-wrapper ref="discord" @setupComplete="onDiscordSetupComplete" />
 </template>
 
 <script lang="ts" setup>
@@ -18,6 +19,10 @@ import DrawLayer from '@/components/DrawLayer.vue';
 import TokenLayer from '@/components/TokenLayer.vue';
 import MainBar from '@/components/MainBar.vue';
 import SettingsDialog from './components/SettingsDialog.vue';
+import DiscordWrapper from './components/DiscordWrapper.vue';
+
+const showSettings = ref(false);
+const discord = ref();
 
 import { useSettings } from '@/settings';
 import { useSession } from '@/session';
@@ -31,14 +36,20 @@ if ((settings.version<=1) && (settings.palette[1]=='red'))
     settings.palette = ['black', 'brown', 'gray', 'red', 'orange', 'yellow', 'green', 'cyan', 'blue', 'purple'];
 }
 
-
-const showSettings = ref(!settings.isValid());
-
-if (settings.isValid())
+function onDiscordSetupComplete(username? : string, roomname?: string)
 {
-    session.switchRoom(settings.roomname, { name: settings.username, color: settings.usercolor });
+    if (username) settings.username=username;
+    if (roomname) settings.roomname=roomname;
+
+    if (settings.isValid())
+    {
+        session.switchRoom(settings.roomname, { name: settings.username, color: settings.usercolor });
+    }
+    else
+    {
+        showSettings.value = true;
+    }
+
 }
-
-
 
 </script>

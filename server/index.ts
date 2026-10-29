@@ -8,12 +8,51 @@ export class BattleMapServer extends YServer {
     };
 }
 
+interface OAuthRequest {
+    code: string;
+}
+
+interface OAuthResult {
+    access_token: string;
+}
+
 export default {
     // Set up your fetch handler to use configured Servers
     async fetch(request: Request, env: Env): Promise<Response> {
-        return (
-            (await routePartykitRequest(request, env)) ||
-            new Response('Not Found', { status: 404 })
-        );
+        const url = new URL(request.url);
+        if (url.pathname==='/api/clientid') {
+            const clientId = env.VITE_DISCORD_CLIENT_ID;
+            return Response.json({clientId});
+        } else if (url.pathname==='/api/token') {
+            // extract the request code
+            const { code } = (await request.json()) as OAuthRequest;
+
+            // Exchange the code for an access_token
+            const response = await fetch(
+                `https://discord.com/api/oauth2/token`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        client_id: env.VITE_DISCORD_CLIENT_ID,
+                        client_secret: env.DISCORD_CLIENT_SECRET,
+                        grant_type: 'authorization_code',
+                        code: code,
+                    }),
+                }
+            );
+
+            // Retrieve the access_token from the response
+            const { access_token } = (await response.json()) as OAuthResult;
+
+            return Response.json({ access_token });
+        } else {
+            return (
+                (await routePartykitRequest(request, env)) ||
+                new Response('Not Found', { status: 404 })
+            );
+        }
     },
 } satisfies ExportedHandler<Env>;
