@@ -103,7 +103,7 @@ function handleMouseMove(e: KonvaEvent<PointerEvent>) {
 
         if (e.evt.buttons === DRAW_BUTTONS) {
             e.evt.preventDefault();
-            Strokes.continueStroke([point.x, point.y, e.evt.pressure || 0.5]);
+            Strokes.continueStroke([point.x, point.y, e.evt.pressure]);
         }
     }
 }
@@ -115,7 +115,7 @@ function handleMouseUp(e: KonvaEvent<PointerEvent>)
         const stage = e.target?.getStage();
         if (stage) {
             const point = stage.getRelativePointerPosition()!;
-            Strokes.endStroke([point.x, point.y, e.evt.pressure || 0.5]);
+            Strokes.endStroke([point.x, point.y, e.evt.pressure]);
         }
         else
         {
