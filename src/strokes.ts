@@ -109,7 +109,7 @@ class ActiveStroke implements Stroke {
         if (point) {
             this.addPoint(point, true);
         } else {
-            this.outline[0][0] = getStroke(this.points, {
+            this.outline[0]![0] = getStroke(this.points, {
                 size: this.size,
                 simulatePressure: !this.isPen,
                 last: true,
@@ -128,7 +128,7 @@ class ActiveStroke implements Stroke {
     protected addPoint(point: TouchPoint, final: boolean): void {
         this.points.push(point);
         updateBoundsWithPoint(this.topLeft, this.bottomRight, [point[0], point[1]]);
-        this.outline[0][0] = getStroke(this.points, {
+        this.outline[0]![0] = getStroke(this.points, {
             size: this.size,
             simulatePressure: !this.isPen,
             last: final,
@@ -171,7 +171,7 @@ export function endStroke(pos?: TouchPoint)
                     else
                     {
                         const anchor = newOutline[0]![0]![0]!;
-                        const newStroke = {
+                        const newStroke : Stroke = {
                             color: stroke.color,
                             outline: newOutline,
                             topLeft: [anchor[0], anchor[1]],

@@ -19,7 +19,6 @@ import { deref, uid, keyContainer, type KonvaEvent } from '@/utils';
 import { useSettings } from '@/settings';
 import TokenShape from './TokenShape.vue';
 import TokenMenu from './TokenMenu.vue';
-import type { Point } from '@/strokes.ts';
 
 const settings = useSettings();
 const layer = ref<VueKonvaRef<Konva.Layer>>();

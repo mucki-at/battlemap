@@ -165,7 +165,7 @@ export class BattleMap {
         return this.$store?.tokens || [];
     }
     public getStrokes() {
-        const map = getYjsValue(this.$store?.strokes);
+        const map = getYjsValue(this.$store?.strokes) as unknown as Strokes.StrokeMap;
         return map || EmptyStrokes;
     }
 }
