@@ -1,18 +1,21 @@
 <template>
     <v-layer ref="layer" :config="{ listening: false }">
-        <v-line
-            v-for="(line) in lines"
-            :key="line.id"
+        <multi-polygon-shape v-for="[id, stroke] in session.strokes" :key="id"
             :config="{
-                points: line.points,
-                stroke: line.color,
-                strokeWidth: 5,
-                tension: 0.5,
-                lineCap: 'round',
-                lineJoin: 'round',
-                globalCompositeOperation: 'source-over',
+                polygons: stroke.outline,
+                fill: Strokes.isEraser(stroke) ? 'white' : stroke.color,
+                globalCompositeOperation: Strokes.isEraser(stroke) ? 'destination-out' : 'source-over'
             }"
         />
+        <v-line v-if="session.activeStroke"
+            :config="{
+                points: session.activeStroke.outline[0]![0]!.flatMap(x => x),
+                fill: Strokes.isEraser(session.activeStroke) ? 'white' : session.activeStroke.color,
+                globalCompositeOperation: Strokes.isEraser(session.activeStroke) ? 'destination-out' : 'source-over',
+                closed: true
+            }"
+        />
+
         <v-circle :config="eraseCursor" />
     </v-layer>
 </template>
@@ -24,11 +27,13 @@ import type Konva from 'konva';
 import { onMounted, ref, triggerRef } from 'vue';
 import type { Vector2d } from 'konva/lib/types';
 import { deref, keyContainer, uid, type KonvaEvent } from '@/utils';
-import { useSettings } from '@/settings.ts';
+import MultiPolygonShape from './MultiPolygonShape.vue';
+import { useSettings } from '@/settings';
+import { useSession } from '@/session';
 
 const settings = useSettings();
+const session = useSession();
 
-const lines = defineModel<Array<Strokes.Line>>({ required: true });
 const layer = ref<VueKonvaRef<Konva.Layer>>();
 
 const eraseCursor = ref({
@@ -79,14 +84,12 @@ function handleMouseDown(e: KonvaEvent<PointerEvent>) {
         e.evt.preventDefault();
 
         const pos = stage.getRelativePointerPosition()!;
-        if (eraseCursor.value.visible) {
-            if (Strokes.trimLines(lines.value, pos, eraseCursor.value.radius)) {
-                triggerRef(lines);
-            }
-        } else {
-            Strokes.beginOrContinueLine(lines.value, pos, settings.color);
-            triggerRef(lines);
-        }
+        Strokes.beginStroke(
+            [pos.x, pos.y, e.evt.pressure || 0.5],
+            eraseCursor.value.visible ? Strokes.ERASE : settings.color,
+            eraseCursor.value.visible ? eraseCursor.value.radius * 2.0 : 8.0,
+            e.evt.pointerType !== 'mouse'
+        );
     }
 }
 
@@ -100,27 +103,26 @@ function handleMouseMove(e: KonvaEvent<PointerEvent>) {
 
         if (e.evt.buttons === DRAW_BUTTONS) {
             e.evt.preventDefault();
-            if (eraseCursor.value.visible) {
-                if (
-                    Strokes.trimLines(
-                        lines.value,
-                        point,
-                        eraseCursor.value.radius
-                    )
-                ) {
-                    triggerRef(lines);
-                }
-            } else {
-                Strokes.beginOrContinueLine(lines.value, point, settings.color);
-                triggerRef(lines);
-            }
+            Strokes.continueStroke([point.x, point.y, e.evt.pressure || 0.5]);
         }
     }
 }
 
-function handleMouseUp() {
+function handleMouseUp(e: KonvaEvent<PointerEvent>)
+{
+    if (isPenDown)
+    {
+        const stage = e.target?.getStage();
+        if (stage) {
+            const point = stage.getRelativePointerPosition()!;
+            Strokes.endStroke([point.x, point.y, e.evt.pressure || 0.5]);
+        }
+        else
+        {
+            Strokes.endStroke();
+        }
+    }
     isPenDown = false;
-    Strokes.endLine();
 }
 
 function handleKeyDown(e: KeyboardEvent) {

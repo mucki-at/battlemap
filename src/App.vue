@@ -2,7 +2,7 @@
     <v-sheet>
         <smart-stage>
             <grid-layer />
-            <draw-layer v-model="session.lines" />
+            <draw-layer />
             <token-layer v-model="session.tokens" />
         </smart-stage>
     </v-sheet>
@@ -29,6 +29,8 @@ import { useSession } from '@/session';
 
 const settings = useSettings();
 const session = useSession();
+
+
 
 // BUGBUGBUG: update clients with settigns before v1
 if ((settings.version<=1) && (settings.palette[1]=='red'))

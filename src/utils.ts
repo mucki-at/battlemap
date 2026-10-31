@@ -26,3 +26,9 @@ export function uid() : string
 {
     return Math.random().toString(36).substring(2, 9);
 }
+
+export interface Mapish<Key,Value>
+{
+    get(k: Key) : Value;
+    set(k: Key, v:Value) : Mapish<Key, Value>
+}

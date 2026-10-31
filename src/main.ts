@@ -19,4 +19,7 @@ import 'unfonts.css'
 const app = createApp(App)
 registerPlugins(app)
 
+ import { initStrokes } from '@/strokes.ts'
+ initStrokes(); // hook up session store now that it is valid
+
 app.mount('#app')

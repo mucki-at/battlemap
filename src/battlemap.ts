@@ -1,4 +1,4 @@
-import { syncedStore, getYjsDoc } from '@syncedstore/core';
+import { syncedStore, getYjsDoc, getYjsValue } from '@syncedstore/core';
 import * as Y from 'yjs';
 import YPartyServerProvider from 'y-partyserver/provider';
 import { type Awareness } from 'y-protocols/awareness.js';
@@ -7,7 +7,7 @@ import * as Tokens from '@/tokens';
 import * as Strokes from '@/strokes';
 
 interface StoreType {
-    lines: Strokes.Line[];
+    strokes: Strokes.StrokeMap | {};
     tokens: Tokens.Token[];
 }
 
@@ -17,6 +17,8 @@ export interface User {
     name: string;
     color: string;
 }
+
+const EmptyStrokes = new Map<string, Strokes.Stroke>();
 
 function isUser(obj: any): obj is User {
     return (
@@ -80,7 +82,7 @@ export class BattleMap {
         this.disconnect();
 
         this.$store = syncedStore({
-            lines: [] as Strokes.Line[],
+            strokes: {} as Strokes.StrokeMap,
             tokens: [] as Tokens.Token[],
         });
         this.$doc = getYjsDoc(this.$store);
@@ -162,7 +164,8 @@ export class BattleMap {
     public getTokens() {
         return this.$store?.tokens || [];
     }
-    public getLines() {
-        return this.$store?.lines || [];
+    public getStrokes() {
+        const map = getYjsValue(this.$store?.strokes);
+        return map || EmptyStrokes;
     }
 }
