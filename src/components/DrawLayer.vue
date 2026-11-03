@@ -51,7 +51,7 @@ const layer = ref<VueKonvaRef<Konva.Layer>>();
 const foreignStrokes = computed(() => {
     const myId = session.getClientId();
     const strokes : IterableIterator<[string, Strokes.Stroke]> = session.activeStrokes?.entries() || new Map().entries();
-    return filter(strokes, ([id, _]) => id !== myId.toString());
+    return [...filter(strokes, ([id, _]) => id !== myId.toString())];
 });
 
 const eraseCursor = ref({
