@@ -92,7 +92,7 @@ export class BattleMap {
 
         this.$network = new YPartyServerProvider(
             window.location.host,
-            roomname,
+            roomname.toLowerCase(),
             this.$doc,
             {
                 connect: false,
