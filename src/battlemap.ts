@@ -7,7 +7,8 @@ import * as Tokens from '@/tokens';
 import * as Strokes from '@/strokes';
 
 interface StoreType {
-    strokes: Strokes.StrokeMap | {};
+    strokes: Strokes.StrokeMap;
+    activeStrokes: Strokes.StrokeMap;
     tokens: Tokens.Token[];
 }
 
@@ -83,8 +84,10 @@ export class BattleMap {
 
         this.$store = syncedStore({
             strokes: {} as Strokes.StrokeMap,
+            activeStrokes: {} as Strokes.StrokeMap,
             tokens: [] as Tokens.Token[],
-        });
+        }) as unknown as StoreType; 
+
         this.$doc = getYjsDoc(this.$store);
 
         this.$network = new YPartyServerProvider(
@@ -107,6 +110,13 @@ export class BattleMap {
         this.$awareness.on('change', () => this.onAwarenessChanged());
 
         this.$awareness.setLocalState({ user: this.$user });
+        // BUGBUGBUG: Until awareness is fixed, we need to keep updating the local state every 10 seconds
+        // so that peers will know we exist: https://github.com/cloudflare/partykit/issues/420
+        setInterval(() => {
+            if (this.$awareness) {
+                this.$awareness.setLocalState({ user: this.$user });
+            }
+        }, 10000);
 
         this.$network.connect();
     }
@@ -132,18 +142,14 @@ export class BattleMap {
     protected onNetworkStatusChanged(status: string) {
         if (this.$feedback) {
             if (status == 'connecting') this.$feedback.state = 'connecting';
-            else if (status == 'connected')
-                {
-                    this.$feedback.state = 'online';
-                    this.$feedback.error = null;
-                }
-
-            else this.$feedback.state = 'offline';
+            else if (status == 'connected') {
+                this.$feedback.state = 'online';
+                this.$feedback.error = null;
+            } else this.$feedback.state = 'offline';
         }
     }
 
-    protected onNetworkClosed(event: CloseEvent)
-    {
+    protected onNetworkClosed(event: CloseEvent) {
         if (this.$feedback) {
             this.$feedback.state = 'offline';
             if (event.wasClean) this.$feedback.error = null;
@@ -161,11 +167,28 @@ export class BattleMap {
         }
     }
 
+    public getUser(id: number): User | undefined {
+        return this.$awareness?.getStates().get(id)?.user as User | undefined;
+    }
+
     public getTokens() {
         return this.$store?.tokens || [];
     }
+
     public getStrokes() {
-        const map = getYjsValue(this.$store?.strokes) as unknown as Strokes.StrokeMap;
+        const map = getYjsValue(
+            this.$store?.strokes
+        ) as unknown as Strokes.StrokeMap;
+        return map || EmptyStrokes;
+    }
+
+    public getClientId() {
+        return this.$doc?.clientID || 0;
+    }
+    public getActiveStrokes() {
+        const map = getYjsValue(
+            this.$store?.activeStrokes
+        ) as unknown as Strokes.StrokeMap;
         return map || EmptyStrokes;
     }
 }

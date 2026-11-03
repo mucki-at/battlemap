@@ -6,6 +6,9 @@ export type { MultiPolygon, Polygon, Ring, Pair as PolyPoint } from 'polygon-cli
 import { useSession } from '@/session';
 
 let session : ReturnType<typeof useSession> | null = null;
+let lastWetStrokeUpdateTime = 0;
+const WET_STROKE_UPDATE_INTERVAL = 100; // milliseconds
+
 export function initStrokes()
 {
     session = useSession();
@@ -28,7 +31,7 @@ export function isEraser(stroke: Stroke) : boolean
 }
 
 // how we expect strokes to be stored by the backend
-export type StrokeMap = Map<string, Stroke>;
+export type StrokeMap = Mapish<string, Stroke>;
 
 // how we interface with frontend: x, y, pressure (optional)
 export type TouchPoint = [number, number] | [number, number, number];
@@ -124,6 +127,14 @@ class ActiveStroke implements Stroke {
         };
     }
 
+    public copyStroke(): Stroke {
+        return {
+            color: this.color,
+            outline: this.outline,
+            topLeft: this.topLeft,
+            bottomRight: this.bottomRight
+        };
+    }
 
     protected addPoint(point: TouchPoint, final: boolean): void {
         this.points.push(point);
@@ -143,20 +154,34 @@ export function beginStroke(
     isPen: boolean
 ) : void {
     if (!session) return;
-    if (session.activeStroke) endStroke();
-    session.activeStroke = new ActiveStroke(start, color, size, isPen);
+    if (session.myActiveStroke) endStroke();
+    session.myActiveStroke = new ActiveStroke(start, color, size, isPen);
 }    
 
 export function continueStroke(pos: TouchPoint)
 {
-    (session?.activeStroke as ActiveStroke)?.continue(pos);
+    if (session?.myActiveStroke)
+    {
+        const activeStroke = session.myActiveStroke as ActiveStroke;
+        activeStroke.continue(pos);
+        if (Date.now() - lastWetStrokeUpdateTime > WET_STROKE_UPDATE_INTERVAL)
+        {
+            lastWetStrokeUpdateTime = Date.now();
+            session.activeStrokes?.set(
+                session.getClientId(),
+                activeStroke.copyStroke()
+            );
+        }
+    }
 }
 
 export function endStroke(pos?: TouchPoint)
 {
     if (!session) return;
-    if (session.activeStroke) {
-        const completStroke = (session.activeStroke as ActiveStroke).finalize(pos);
+    if (session.myActiveStroke)
+    {
+        session.activeStrokes?.delete(session.getClientId());
+        const completStroke = (session.myActiveStroke as ActiveStroke).finalize(pos);
         if (session.strokes)
         {
             if (completStroke.color == ERASE)
@@ -192,7 +217,7 @@ export function endStroke(pos?: TouchPoint)
                 session.strokes.set(uid(), completStroke);
             }
         }
-    }  
-    session.activeStroke = undefined;
+    }
+    session.myActiveStroke = undefined;
 }
 
