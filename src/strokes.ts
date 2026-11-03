@@ -19,11 +19,12 @@ export const ERASE = 'erase';
 // a single stroke as drawn by the user.
 // color is anything css/canvas acceps as color value or the special value 'erase'
 export interface Stroke {
-    color: string; // set to 'erase' to cause the stroke to visually delete things
-    outline: MultiPolygon; // stroke outline as multi-polygon in
-    topLeft: PolyPoint;
-    bottomRight: PolyPoint;
+    color: string;          // anything CSS/Canvas2D can handle (eg. 'red', '#ff0000', 'rgb(255,0,0)') or the special value 'erase' which means this stroke is an eraser stroke.
+    outline: MultiPolygon;  // the shape(s) of the stroke.
+    topLeft: PolyPoint;     // the top left corner of the bounding rectangle of the stroke
+    bottomRight: PolyPoint; // the bottom right corner of the bounding rectangle of the stroke
 }
+
 
 export function isEraser(stroke: Stroke) : boolean
 {
@@ -108,6 +109,27 @@ class ActiveStroke implements Stroke {
         this.addPoint(point, false);
     }
 
+    public setShape(points: TouchPoint[]): void
+    {
+        if (points.length == 0)
+        {
+            this.points = [];
+            this.topLeft = [0, 0];
+            this.bottomRight = [0, 0];
+            this.outline[0]![0] = [];
+            return;
+        }
+        this.points = points.slice();
+        this.topLeft = [points[0]![0], points[0]![1]];
+        this.bottomRight = [points[0]![0], points[0]![1]];
+        updateBoundsWithRing(this.topLeft, this.bottomRight, this.points as Ring);
+        this.outline[0]![0] = getStroke(this.points, {
+            size: this.size,
+            simulatePressure: !this.isPen,
+            last: false,
+        });
+    }
+
     public finalize(point?: TouchPoint): Stroke {
         if (point) {
             this.addPoint(point, true);
@@ -123,7 +145,7 @@ class ActiveStroke implements Stroke {
             color: this.color,
             outline: polygonClipping.union(this.outline),
             topLeft: this.topLeft,
-            bottomRight: this.bottomRight
+            bottomRight: this.bottomRight,
         };
     }
 
@@ -132,13 +154,16 @@ class ActiveStroke implements Stroke {
             color: this.color,
             outline: this.outline,
             topLeft: this.topLeft,
-            bottomRight: this.bottomRight
+            bottomRight: this.bottomRight,
         };
     }
 
     protected addPoint(point: TouchPoint, final: boolean): void {
         this.points.push(point);
-        updateBoundsWithPoint(this.topLeft, this.bottomRight, [point[0], point[1]]);
+        updateBoundsWithPoint(this.topLeft, this.bottomRight, [
+            point[0],
+            point[1],
+        ]);
         this.outline[0]![0] = getStroke(this.points, {
             size: this.size,
             simulatePressure: !this.isPen,
@@ -147,19 +172,22 @@ class ActiveStroke implements Stroke {
     }
 }
 
+// Begin a new stroke. If an active stroke exists, it is finalized.
 export function beginStroke(
-    start: TouchPoint,
-    color: string,
-    size: number,
-    isPen: boolean
+    start: TouchPoint,      // first point in stroke
+    color: string,          // color of stroke. use Strokes.ERASE to create a stroke which erases things.
+    size: number,           // diameter of the brush
+    isPen: boolean          // if false then pressure is simulated, otherwise the pressure in the touch points are used
 ) : void {
     if (!session) return;
     if (session.myActiveStroke) endStroke();
     session.myActiveStroke = new ActiveStroke(start, color, size, isPen);
 }    
 
-export function continueStroke(pos: TouchPoint)
-{
+// add a new point to the currently active stroke. If no stroke is active, this does nothing.
+export function continueStroke(
+    pos: TouchPoint         // point to add
+) : void {
     if (session?.myActiveStroke)
     {
         const activeStroke = session.myActiveStroke as ActiveStroke;
@@ -175,7 +203,33 @@ export function continueStroke(pos: TouchPoint)
     }
 }
 
-export function endStroke(pos?: TouchPoint)
+// set the stroke to be exactly the given list of points. This can be used to
+// draw predefined shapes like rectangles with a live preview. Note that if you
+// want a closed shape you need to duplicate the first point at the end (so a
+// rectangle has 5 points for example [A, B, C, D, A])
+export function setActiveStrokeShape(
+    points: TouchPoint[]    // list of points to set
+): void {
+    if (session?.myActiveStroke) {
+        const activeStroke = session.myActiveStroke as ActiveStroke;
+        activeStroke.setShape(points);
+        if (Date.now() - lastWetStrokeUpdateTime > WET_STROKE_UPDATE_INTERVAL) {
+            lastWetStrokeUpdateTime = Date.now();
+            session.activeStrokes?.set(
+                session.getClientId(),
+                activeStroke.copyStroke()
+            );
+        }
+    }
+}
+
+// finalize the active stroke. If this is a painting stroke, it is moved to the
+// 'dry' strokes. If this is an erasing stroke, the outline is subtracted from
+// all other 'dry' strokes. If there is no active stroke, this does nothing.
+// After this function returns, the active stroke is cleared and there is no longer an active stroke.
+export function endStroke(
+    pos?: TouchPoint            // optional final point to add to the stroke before finalizing it
+) : void
 {
     if (!session) return;
     if (session.myActiveStroke)
