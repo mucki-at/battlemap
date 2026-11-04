@@ -1,4 +1,4 @@
-import { syncedStore, getYjsDoc } from '@syncedstore/core';
+import { syncedStore, getYjsDoc, getYjsValue } from '@syncedstore/core';
 import * as Y from 'yjs';
 import YPartyServerProvider from 'y-partyserver/provider';
 import { type Awareness } from 'y-protocols/awareness.js';
@@ -7,7 +7,8 @@ import * as Tokens from '@/tokens';
 import * as Strokes from '@/strokes';
 
 interface StoreType {
-    lines: Strokes.Line[];
+    strokes: Strokes.StrokeMap;
+    activeStrokes: Strokes.StrokeMap;
     tokens: Tokens.Token[];
 }
 
@@ -17,6 +18,8 @@ export interface User {
     name: string;
     color: string;
 }
+
+const EmptyStrokes = new Map<string, Strokes.Stroke>();
 
 function isUser(obj: any): obj is User {
     return (
@@ -80,14 +83,16 @@ export class BattleMap {
         this.disconnect();
 
         this.$store = syncedStore({
-            lines: [] as Strokes.Line[],
+            strokes: {} as Strokes.StrokeMap,
+            activeStrokes: {} as Strokes.StrokeMap,
             tokens: [] as Tokens.Token[],
-        });
+        }) as unknown as StoreType; 
+
         this.$doc = getYjsDoc(this.$store);
 
         this.$network = new YPartyServerProvider(
             window.location.host,
-            roomname,
+            roomname.toLowerCase(),
             this.$doc,
             {
                 connect: false,
@@ -105,6 +110,13 @@ export class BattleMap {
         this.$awareness.on('change', () => this.onAwarenessChanged());
 
         this.$awareness.setLocalState({ user: this.$user });
+        // BUGBUGBUG: Until awareness is fixed, we need to keep updating the local state every 10 seconds
+        // so that peers will know we exist: https://github.com/cloudflare/partykit/issues/420
+        setInterval(() => {
+            if (this.$awareness) {
+                this.$awareness.setLocalState({ user: this.$user });
+            }
+        }, 10000);
 
         this.$network.connect();
     }
@@ -130,18 +142,14 @@ export class BattleMap {
     protected onNetworkStatusChanged(status: string) {
         if (this.$feedback) {
             if (status == 'connecting') this.$feedback.state = 'connecting';
-            else if (status == 'connected')
-                {
-                    this.$feedback.state = 'online';
-                    this.$feedback.error = null;
-                }
-
-            else this.$feedback.state = 'offline';
+            else if (status == 'connected') {
+                this.$feedback.state = 'online';
+                this.$feedback.error = null;
+            } else this.$feedback.state = 'offline';
         }
     }
 
-    protected onNetworkClosed(event: CloseEvent)
-    {
+    protected onNetworkClosed(event: CloseEvent) {
         if (this.$feedback) {
             this.$feedback.state = 'offline';
             if (event.wasClean) this.$feedback.error = null;
@@ -159,10 +167,28 @@ export class BattleMap {
         }
     }
 
+    public getUser(id: number): User | undefined {
+        return this.$awareness?.getStates().get(id)?.user as User | undefined;
+    }
+
     public getTokens() {
         return this.$store?.tokens || [];
     }
-    public getLines() {
-        return this.$store?.lines || [];
+
+    public getStrokes() {
+        const map = getYjsValue(
+            this.$store?.strokes
+        ) as unknown as Strokes.StrokeMap;
+        return map || EmptyStrokes;
+    }
+
+    public getClientId() {
+        return this.$doc?.clientID || 0;
+    }
+    public getActiveStrokes() {
+        const map = getYjsValue(
+            this.$store?.activeStrokes
+        ) as unknown as Strokes.StrokeMap;
+        return map || EmptyStrokes;
     }
 }

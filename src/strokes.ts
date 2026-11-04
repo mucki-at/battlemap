@@ -1,122 +1,277 @@
-import { uid } from '@/utils'
+import { uid, type Mapish } from '@/utils'
+import { getStroke } from 'perfect-freehand';
+import polygonClipping from 'polygon-clipping';
+import type { MultiPolygon, Polygon, Ring, Pair as PolyPoint } from 'polygon-clipping';
+export type { MultiPolygon, Polygon, Ring, Pair as PolyPoint } from 'polygon-clipping'
+import { useSession } from '@/session';
 
-export interface Line
+let session : ReturnType<typeof useSession> | null = null;
+let lastWetStrokeUpdateTime = 0;
+const WET_STROKE_UPDATE_INTERVAL = 100; // milliseconds
+
+export function initStrokes()
 {
-    id: string;
+    session = useSession();
+}
+
+export const ERASE = 'erase';
+
+// a single stroke as drawn by the user.
+// color is anything css/canvas acceps as color value or the special value 'erase'
+export interface Stroke {
+    color: string;          // anything CSS/Canvas2D can handle (eg. 'red', '#ff0000', 'rgb(255,0,0)') or the special value 'erase' which means this stroke is an eraser stroke.
+    outline: MultiPolygon;  // the shape(s) of the stroke.
+    topLeft: PolyPoint;     // the top left corner of the bounding rectangle of the stroke
+    bottomRight: PolyPoint; // the bottom right corner of the bounding rectangle of the stroke
+}
+
+
+export function isEraser(stroke: Stroke) : boolean
+{
+    return stroke.color === ERASE;
+}
+
+// how we expect strokes to be stored by the backend
+export type StrokeMap = Mapish<string, Stroke>;
+
+// how we interface with frontend: x, y, pressure (optional)
+export type TouchPoint = [number, number] | [number, number, number];
+
+function updateBoundsWithPoint(tl: PolyPoint, br: PolyPoint, p: PolyPoint)
+{
+    if (p[0] < tl[0]) tl[0]=p[0];
+    if (p[1] < tl[1]) tl[1]=p[1];
+    if (p[0] > br[0]) br[0]=p[0];
+    if (p[1] > br[1]) br[1]=p[1];
+}
+
+function updateBoundsWithRing(tl: PolyPoint, br: PolyPoint, points: Ring)
+{
+    for (const p of points)
+    {
+        if (p[0] < tl[0]) tl[0]=p[0];
+        if (p[1] < tl[1]) tl[1]=p[1];
+        if (p[0] > br[0]) br[0]=p[0];
+        if (p[1] > br[1]) br[1]=p[1];
+    }
+}
+
+function updateBoundsWithPolygon(tl: PolyPoint, br: PolyPoint, polygon: Polygon)
+{
+    for (const r of polygon) updateBoundsWithRing(tl, br, r);
+}
+
+function updateBoundsWithMultiPolygon(tl: PolyPoint, br: PolyPoint, multi: MultiPolygon)
+{
+    for (const p of multi) updateBoundsWithPolygon(tl, br, p);
+}
+
+function boundsOverlap(tl1: PolyPoint, br1: PolyPoint, tl2: PolyPoint, br2:PolyPoint) : boolean
+{
+    // ranges do not overlap if right2 < left1 or right1 < left2
+    if ((br2[0] < tl1[0]) || (br1[0] < tl2[0])) return false; 
+    if ((br2[1] < tl1[1]) || (br1[1] < tl2[1])) return false; 
+    return true;
+}
+
+function strokeBoundsOverlap(s1: Stroke, s2: Stroke) : boolean
+{
+    return boundsOverlap(s1.topLeft, s1.bottomRight, s2.topLeft, s2.bottomRight);
+}
+
+// The currently active stroke.
+class ActiveStroke implements Stroke {
     color: string;
-    points: Array<number>;
-}
+    outline: MultiPolygon;
+    points: Array<TouchPoint>;
+    isPen: boolean;
+    size: number;
+    topLeft: PolyPoint;
+    bottomRight: PolyPoint;
 
-export interface Point {
-    x: number;
-    y: number;
-}
+    constructor(
+        start: TouchPoint,
+        color: string,
+        size: number,
+        isPen: boolean
+    ) {
+        this.color = color;
+        this.points = [];
+        this.isPen = isPen;
+        this.size = size;
+        this.outline = [[[]]];
+        this.topLeft = [start[0], start[1]];
+        this.bottomRight = [start[0], start[1]];
+        this.addPoint(start, false);
+    }
 
-let activeLine : Line | null = null;
+    public continue(point: TouchPoint): void {
+        this.addPoint(point, false);
+    }
 
-export function beginOrContinueLine(lines: Array<Line>, pos: Point, color: string)
-{
-    if (activeLine)
+    public setShape(points: TouchPoint[]): void
     {
-        activeLine.points = activeLine.points.concat([pos.x, pos.y]);
-      //  activeLine.points.push(pos.x, pos.y);
-    }
-    else
-    {
-        lines.push({
-            id: uid(),
-            color: color,
-            points: [pos.x, pos.y],
-        });
-        activeLine = lines[lines.length-1]!
-    }
-}
-
-export function endLine()
-{
-    activeLine = null;
-}
-
-function findSegements(
-    points: Array<number>,
-    pos: Point,
-    r: number,
-    inside: boolean
-) {
-    // Step 1: find all the places the line enters or leaves the circle
-    const segments = [];
-    let prevIn = !inside;
-    let i = 0;
-    while (i < points.length) {
-        const px : number = points[i]!;
-        const py : number = points[i+1]!;
-        const test = Math.hypot(pos.x - px, pos.y - py) <= r;
-        if (test != prevIn) {
-            segments.push(i);
-        }
-        prevIn = test;
-        i += 2;
-    }
-    if (prevIn === inside) segments.push(points.length);
-    return segments;
-}
-
-interface Splice {
-    index: number;
-    delete: number;
-    add: Array<Line>;
-}
-
-export function trimLines(lines: Array<Line>, pos: Point, r: number) : boolean {
-    const splices = new Array<Splice>();
-    let modified = false;
-    for (let i = lines.length - 1; i >= 0; --i) {
-        const points = lines[i]!.points;
-        // Step 1: find all the parts of the line which are not inside the circle
-        const segments = findSegements(points, pos, r, false);
-
-        // Step 2: trim all the deletd points. might split or delete lines
-        if (segments.length == 0) // line is gone
+        if (points.length == 0)
         {
-            splices.push({
-                index: i,
-                delete: 1,
-                add: [],
-            });
-            if (activeLine == lines[i])
-            {
-                activeLine = null;
-            }
-            modified = true;
+            this.points = [];
+            this.topLeft = [0, 0];
+            this.bottomRight = [0, 0];
+            this.outline[0]![0] = [];
+            return;
+        }
+        this.points = points.slice();
+        this.topLeft = [points[0]![0], points[0]![1]];
+        this.bottomRight = [points[0]![0], points[0]![1]];
+        updateBoundsWithRing(this.topLeft, this.bottomRight, this.points as Ring);
+        this.outline[0]![0] = getStroke(this.points, {
+            size: this.size,
+            simulatePressure: !this.isPen,
+            last: false,
+        });
+    }
+
+    public finalize(point?: TouchPoint): Stroke {
+        if (point) {
+            this.addPoint(point, true);
         } else {
-            const newFirstSegment = points.slice(segments[0], segments[1]);         
-            const newLines : Array<Line> = [];
-            for (let j = 2; j < segments.length; j += 2) {
-                newLines.push({
-                    id: uid(),
-                    color: lines[i]!.color,
-                    points: points.slice(segments[j], segments[j + 1]),
-                });
-            }
-            lines[i]!.points = newFirstSegment;
-            if (newLines.length > 0)
-            {
-                splices.push({
-                    index: i + 1,
-                    delete: 0,
-                    add: newLines,
-                });
-            }
-            modified = true;
+            this.outline[0]![0] = getStroke(this.points, {
+                size: this.size,
+                simulatePressure: !this.isPen,
+                last: true,
+            });
+        }
+
+        return {
+            color: this.color,
+            outline: polygonClipping.union(this.outline),
+            topLeft: this.topLeft,
+            bottomRight: this.bottomRight,
+        };
+    }
+
+    public copyStroke(): Stroke {
+        return {
+            color: this.color,
+            outline: this.outline,
+            topLeft: this.topLeft,
+            bottomRight: this.bottomRight,
+        };
+    }
+
+    protected addPoint(point: TouchPoint, final: boolean): void {
+        this.points.push(point);
+        updateBoundsWithPoint(this.topLeft, this.bottomRight, [
+            point[0],
+            point[1],
+        ]);
+        this.outline[0]![0] = getStroke(this.points, {
+            size: this.size,
+            simulatePressure: !this.isPen,
+            last: final,
+        });
+    }
+}
+
+// Begin a new stroke. If an active stroke exists, it is finalized.
+export function beginStroke(
+    start: TouchPoint,      // first point in stroke
+    color: string,          // color of stroke. use Strokes.ERASE to create a stroke which erases things.
+    size: number,           // diameter of the brush
+    isPen: boolean          // if false then pressure is simulated, otherwise the pressure in the touch points are used
+) : void {
+    if (!session) return;
+    if (session.myActiveStroke) endStroke();
+    session.myActiveStroke = new ActiveStroke(start, color, size, isPen);
+}    
+
+// add a new point to the currently active stroke. If no stroke is active, this does nothing.
+export function continueStroke(
+    pos: TouchPoint         // point to add
+) : void {
+    if (session?.myActiveStroke)
+    {
+        const activeStroke = session.myActiveStroke as ActiveStroke;
+        activeStroke.continue(pos);
+        if (Date.now() - lastWetStrokeUpdateTime > WET_STROKE_UPDATE_INTERVAL)
+        {
+            lastWetStrokeUpdateTime = Date.now();
+            session.activeStrokes?.set(
+                session.getClientId(),
+                activeStroke.copyStroke()
+            );
         }
     }
-
-    // Step 3: insert/delete all the new/deleted line segments in the right slots
-    // we do this *after* iterating over the existing lines (and back to front) to
-    // make sure the indices are valid
-    for (const splice of splices) {
-        lines.splice(splice.index, splice.delete, ...splice.add);
-    }
-
-    return modified;
 }
+
+// set the stroke to be exactly the given list of points. This can be used to
+// draw predefined shapes like rectangles with a live preview. Note that if you
+// want a closed shape you need to duplicate the first point at the end (so a
+// rectangle has 5 points for example [A, B, C, D, A])
+export function setActiveStrokeShape(
+    points: TouchPoint[]    // list of points to set
+): void {
+    if (session?.myActiveStroke) {
+        const activeStroke = session.myActiveStroke as ActiveStroke;
+        activeStroke.setShape(points);
+        if (Date.now() - lastWetStrokeUpdateTime > WET_STROKE_UPDATE_INTERVAL) {
+            lastWetStrokeUpdateTime = Date.now();
+            session.activeStrokes?.set(
+                session.getClientId(),
+                activeStroke.copyStroke()
+            );
+        }
+    }
+}
+
+// finalize the active stroke. If this is a painting stroke, it is moved to the
+// 'dry' strokes. If this is an erasing stroke, the outline is subtracted from
+// all other 'dry' strokes. If there is no active stroke, this does nothing.
+// After this function returns, the active stroke is cleared and there is no longer an active stroke.
+export function endStroke(
+    pos?: TouchPoint            // optional final point to add to the stroke before finalizing it
+) : void
+{
+    if (!session) return;
+    if (session.myActiveStroke)
+    {
+        session.activeStrokes?.delete(session.getClientId());
+        const completStroke = (session.myActiveStroke as ActiveStroke).finalize(pos);
+        if (session.strokes)
+        {
+            if (completStroke.color == ERASE)
+            {
+                const changes: [string, Stroke?][] = []
+                for (const [key, stroke] of session.strokes)
+                {
+                    if (!strokeBoundsOverlap(completStroke, stroke)) continue;
+
+                    const newOutline = polygonClipping.difference(stroke.outline, completStroke.outline);
+                    if (newOutline.length == 0) changes.push([key]);
+                    else
+                    {
+                        const anchor = newOutline[0]![0]![0]!;
+                        const newStroke : Stroke = {
+                            color: stroke.color,
+                            outline: newOutline,
+                            topLeft: [anchor[0], anchor[1]],
+                            bottomRight: [anchor[0], anchor[1]],
+                        };
+                        updateBoundsWithMultiPolygon(newStroke.topLeft,newStroke.bottomRight,newStroke.outline);
+                        changes.push([key, newStroke]);
+                    }
+                }
+                for (const [key, stroke] of changes)
+                {
+                    if (stroke) session.strokes.set(key, stroke);
+                    else session.strokes.delete(key);
+                }
+            }
+            else
+            {
+                session.strokes.set(uid(), completStroke);
+            }
+        }
+    }
+    session.myActiveStroke = undefined;
+}
+

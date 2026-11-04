@@ -26,3 +26,21 @@ export function uid() : string
 {
     return Math.random().toString(36).substring(2, 9);
 }
+
+export interface Mapish<K, V> {
+    get(key: K): V | undefined;
+    set(key: K, value: V): this;
+    delete(key: K): boolean;
+    [Symbol.iterator](): IterableIterator<[K, V]>;
+    entries(): IterableIterator<[K, V]>;
+}   
+
+export function* filter<T=any>(iterator : Iterable<T>, predicate: (value: T) => boolean)
+{
+  for (const value of iterator)
+  {
+    if (predicate(value)) {
+      yield value;
+    }
+  }
+}
