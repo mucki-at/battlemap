@@ -28,4 +28,5 @@ coverage
 .wrangler
 .env
 SECRETS
+.vitest/
 
