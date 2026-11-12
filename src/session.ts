@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
+import { ref, markRaw } from 'vue';
 import type { Stroke, StrokeMap } from '@/strokes';
 import { BattleMap, type User, type NetworkStatus } from '@/battlemap';
 
@@ -12,7 +12,7 @@ export const useSession = defineStore(
             users: [],
         } as NetworkStatus);
 
-        const battlemap = new BattleMap();
+        const battlemap = markRaw(new BattleMap());
         battlemap.setFeedback(networkStatus.value);
 
         const useDiscord = ref(false);
@@ -23,7 +23,7 @@ export const useSession = defineStore(
         const tokens = ref();
         const roomname = ref(battlemap.getRoomName());
 
-        function getClientId() : string { return battlemap.getClientId().toString(); }
+        function getClientId() : string { return battlemap.clientId.toString(); }
         function setUser(user: User): void { battlemap.setUser(user); }
         function getUser(id: string): User | undefined { return battlemap.getUser(parseInt(id)); }
 
@@ -32,13 +32,14 @@ export const useSession = defineStore(
             battlemap.disconnect();
             if (user) battlemap.setUser(user);
             battlemap.connect(room);
-            strokes.value = battlemap.getStrokes();
-            activeStrokes.value = battlemap.getActiveStrokes(); 
-            tokens.value = battlemap.getTokens();
+            strokes.value = battlemap.strokes;
+            activeStrokes.value = battlemap.activeStrokes;
+            tokens.value = battlemap.tokens;
             roomname.value = battlemap.getRoomName();
         }
 
         return {
+            battlemap,
             networkStatus,
             strokes,
             activeStrokes,

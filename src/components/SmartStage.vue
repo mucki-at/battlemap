@@ -10,6 +10,7 @@
         @contextmenu="handleContextMenu"
         @mouseenter="handleMouseEnter"
         v-resize="onResize"
+        style="cursor: crosshair"
         >
         <slot />
     </v-stage>
@@ -59,6 +60,7 @@ function handleMouseDown(e: KonvaEvent<PointerEvent>)
         if (e.evt.buttons === PAN_BUTTONS) {
             // prevent scrolling on touch devices
             e.evt.preventDefault();
+            stage.container().style.cursor = 'move';
 
             isPanning = true;
             lastMousePosition.x = stage.getPointerPosition()!.x;
@@ -121,9 +123,19 @@ function handleMouseMove(e: KonvaEvent<PointerEvent>)
     }
 };
 
-function handleMouseUp()
+function handleMouseUp(e: KonvaEvent<PointerEvent>)
 {
-    isPanning = false;
+    const stage = deref(stageRef);
+    if (stage && (stage === e.target)) {
+        e.evt.preventDefault();
+
+        if (isPanning)
+        {
+            isPanning = false;
+            stage.container().style.cursor = 'crosshair';
+        }
+    }
+
 };
 
 function handleMouseWheel(e: KonvaEvent<WheelEvent>)

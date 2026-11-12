@@ -5,6 +5,7 @@ import { type Awareness } from 'y-protocols/awareness.js';
 
 import * as Tokens from '@/tokens';
 import * as Strokes from '@/strokes';
+import * as Grid from '@/grid';
 
 interface StoreType {
     strokes: Strokes.StrokeMap;
@@ -45,6 +46,7 @@ export class BattleMap {
     $network: YPartyServerProvider | null;
     $awareness: Awareness | null;
     $feedback: NetworkStatus | null = null;
+    $grid: Grid.Grid;
 
     constructor() {
         this.$store = null;
@@ -53,6 +55,8 @@ export class BattleMap {
         this.$awareness = null;
 
         this.$user = { name: 'icognito', color: 'black' };
+
+        this.$grid = new Grid.SquareGrid(50);
     }
 
     public setFeedback(feedback: NetworkStatus | null = null) {
@@ -171,24 +175,29 @@ export class BattleMap {
         return this.$awareness?.getStates().get(id)?.user as User | undefined;
     }
 
-    public getTokens() {
+    public get tokens() {
         return this.$store?.tokens || [];
     }
 
-    public getStrokes() {
+    public get strokes() {
         const map = getYjsValue(
             this.$store?.strokes
         ) as unknown as Strokes.StrokeMap;
         return map || EmptyStrokes;
     }
 
-    public getClientId() {
+    public get clientId() {
         return this.$doc?.clientID || 0;
     }
-    public getActiveStrokes() {
+
+    public get activeStrokes() {
         const map = getYjsValue(
             this.$store?.activeStrokes
         ) as unknown as Strokes.StrokeMap;
         return map || EmptyStrokes;
+    }
+
+    public get grid() {
+        return this.$grid;
     }
 }
