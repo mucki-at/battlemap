@@ -17,41 +17,45 @@ import type { VueKonvaRef } from 'vue-konva';
 import type Konva from 'konva';
 import { deref, uid, keyContainer, type KonvaEvent } from '@/utils';
 import { useSettings } from '@/settings';
+import { useSession } from '@/session';
 import TokenShape from './TokenShape.vue';
 import TokenMenu from './TokenMenu.vue';
+import * as Grid from '@/grid';
 
 const settings = useSettings();
+const session = useSession();
 const layer = ref<VueKonvaRef<Konva.Layer>>();
-const tokens = defineModel<Array<Tokens.Token>>({ required: true });
+const tokens =  defineModel<Array<Tokens.Token>>({ required: true });
 const menuToken = ref<Tokens.Token>();
 const tokenMenu = ref();
 
-const GRIDSIZE = 50.0;
-const SNAP = 50.0;
-
 let currentKeyDown = '';
 
-function toGrid(x: number, size: number) : number
-{
-    if (size<1.0) size=1.0;
-    const ofs=(Math.round(size) % 2) * 25.0;
-
-    return Math.round((x+ofs)/GRIDSIZE)*GRIDSIZE-ofs;
-}
+const SNAP = Number.MAX_VALUE;
 
 function snapToGrid(pos: Konva.Vector2d, size: number) : boolean
 {
-    const gridX=toGrid(pos.x, size);
-    const gridY=toGrid(pos.y, size);
-    if (Math.hypot(pos.x-gridX,pos.y-gridY) <= SNAP)
-    {
-        pos.x = gridX;
-        pos.y = gridY;
+    const [point, distance] = session.battlemap.grid.getNearest([pos.x, pos.y], size % 2 === 0 ? Grid.PointType.Corner : Grid.PointType.Center);
+    if (distance < SNAP) {
+       
+        pos.x = point[0];
+        pos.y = point[1];
         return true;
     }
     return false;
 }
 
+function handleDragStart(e: KonvaEvent<DragEvent>)
+{
+    const shape = e.target;
+    if (!shape) return;
+    shape.getStage()!.container().style.cursor = 'grabbing';
+    shape.setAttrs({
+        shadowBlur: 10,
+        shadowOffsetX: 4,
+        shadowOffsetY: 4,
+    });
+}
 
 function handleDragUpdate(e: KonvaEvent<DragEvent>)
 {
@@ -68,6 +72,21 @@ function handleDragUpdate(e: KonvaEvent<DragEvent>)
 
     token.x = pos.x;
     token.y = pos.y;
+}
+
+function handleDragEnd(e: KonvaEvent<DragEvent>)
+{
+    handleDragUpdate(e);
+
+    const shape = e.target;
+    if (!shape) return;
+    shape.getStage()!.container().style.cursor = 'grab';
+    shape.setAttrs({
+        cursor: 'grab',
+        shadowBlur: 5,
+        shadowOffsetX: 2,
+        shadowOffsetY: 2,
+    });
 }
 
 
@@ -125,9 +144,13 @@ function onTokenMenu(e: KonvaEvent<MouseEvent>)
 
 onMounted(() => {
     const l = deref(layer)!;
-    l.on('dragend', handleDragUpdate);
+    l.on('dragstart', handleDragStart);
+    l.on('dragend', handleDragEnd);
     l.on('dragmove', handleDragUpdate);
     
+    l.on('pointerenter', () => { l.getStage().container().style.cursor = 'grab' });
+    l.on('pointerleave', () => { l.getStage().container().style.cursor = 'crosshair' });
+
     const cont = keyContainer(l);
     cont.addEventListener('keydown', handleKeyDown);
     cont.addEventListener('keyup', handleKeyUp);

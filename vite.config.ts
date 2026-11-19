@@ -1,11 +1,15 @@
+/// <reference types="vitest/config" />
+
 import { fileURLToPath, URL } from 'node:url';
 
 import { defineConfig } from 'vite';
 import Vue from '@vitejs/plugin-vue';
+import Vuetify, { transformAssetUrls } from 'vite-plugin-vuetify';
 import VueDevTools from 'vite-plugin-vue-devtools';
 import Fonts from 'unplugin-fonts/vite';
-import Vuetify, { transformAssetUrls } from 'vite-plugin-vuetify';
 import { cloudflare } from '@cloudflare/vite-plugin';
+
+const isTest = process.env.VITEST;
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -20,22 +24,25 @@ export default defineConfig({
                 configFile: 'src/styles/settings.scss',
             },
         }),
-        Fonts({
-            fontsource: {
-                families: [
-                    {
-                        name: 'Roboto',
-                        weights: [100, 300, 400, 500, 700, 900],
-                        styles: ['normal', 'italic'],
-                    },
-                ],
-            },
-        }),
         VueDevTools(),
-        cloudflare({
-            persistState: false,    // we do not have server-side persistance yet, so also do not persist on client
-            tunnel: { name: 'battlemap-dev' },
-        }),
+        !isTest &&
+            Fonts({
+                fontsource: {
+                    families: [
+                        {
+                            name: 'Roboto',
+                            weights: [100, 300, 400, 500, 700, 900],
+                            styles: ['normal', 'italic'],
+                        },
+                    ],
+                },
+            }),
+
+        !isTest &&
+            cloudflare({
+                persistState: false, // we do not have server-side persistance yet, so also do not persist on client
+                tunnel: { name: 'battlemap-dev' },
+            }),
     ],
     resolve: {
         alias: {
@@ -43,6 +50,7 @@ export default defineConfig({
         },
     },
     server: {
-        allowedHosts: [ "battlemap-dev.mucki.dev" ]
-    }
+        allowedHosts: ['battlemap-dev.mucki.dev'],
+    },
+    test: {},
 });

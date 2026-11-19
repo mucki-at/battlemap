@@ -7,10 +7,11 @@
 import * as Tokens from '@/tokens'
 import type Konva from 'konva';
 import { ref, watch } from 'vue'
+import { useSession } from '@/session';
+
+const session = useSession();
 
 const token = defineModel<Tokens.Token>({ required: true });
-
-const RADIUS = 25;
 
 function tokenShapeRectangle(shape: Konva.Shape)
 {
@@ -18,7 +19,7 @@ function tokenShapeRectangle(shape: Konva.Shape)
     if (!token) return { x:0, y:0, width:0, height:0};
     else
     {
-        const r = RADIUS*(Math.abs(token.size || 1.0));
+        const r = session.battlemap.grid.size*(Math.abs(token.size || 1.0))*0.5;
         return {x: -r, y: -r, width: 2*r, height: 2*r }
     }
 }
@@ -27,7 +28,7 @@ function drawTokenShape(context: Konva.Context, shape: Konva.Shape)
 {
     const token = shape.getAttr('token') as Tokens.Token || null;
     if (!token) return;
-    const r = RADIUS*(Math.abs(token.size || 1.0));
+    const r = session.battlemap.grid.size*(Math.abs(token.size || 1.0))*0.5;
 
     context.beginPath();
     context.arc(0, 0, r, 0, Math.PI * 2, false);
@@ -70,7 +71,7 @@ function drawTokenHitShape(context: Konva.Context, shape: Konva.Shape)
 {
     const token = shape.getAttr('token') as Tokens.Token || null;
     if (!token) return;
-    const r = RADIUS*(Math.abs(token.size || 1.0));
+    const r = session.battlemap.grid.size*(Math.abs(token.size || 1.0))*0.5;
 
     context.beginPath();
     context.arc(0, 0, Math.abs(r), 0, Math.PI * 2, false);
@@ -87,7 +88,13 @@ const config = ref<Konva.ShapeConfig>({
     stroke: token.value.color,
     strokeWidth: 4,
     draggable: true,
-//    selfRectFunc: tokenShapeRectangle,
+    cursor: 'grab',
+    shadowBlur: 5,
+    shadowColor: 'black',
+    shadowOffsetX: 2,
+    shadowOffsetY: 2,
+    shadowOpacity: 0.5,
+    selfRectFunc: tokenShapeRectangle,
     sceneFunc: drawTokenShape,
     hitFunc: drawTokenHitShape
 })

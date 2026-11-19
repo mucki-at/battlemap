@@ -5,6 +5,7 @@
     "type": "module",
     "scripts": {
         "dev": "vite",
+        "test": "vitest",
         "build": "run-p type-check \"build-only {@}\" --",
         "preview local": "npm run build && wrangler dev",
         "preview public": "npm run build && wrangler preview",
@@ -53,6 +54,7 @@
         "vite": "^8.2.2",
         "vite-plugin-vue-devtools": "^8.2.1",
         "vite-plugin-vuetify": "^2.1.3",
+        "vitest": "^5.1.0",
         "vue-tsc": "^3.3.11",
         "wrangler": "^4.154.2"
     },
